@@ -120,8 +120,7 @@ export default function MapCanvas({
     const padding = 60;
     const scale = Math.min(
       (width - padding * 2) / bounds.width,
-      (height - padding * 2) / bounds.height,
-      1.2
+      (height - padding * 2) / bounds.height
     );
     const tx = width / 2 - (bounds.x + bounds.width / 2) * scale;
     const ty = height / 2 - (bounds.y + bounds.height / 2) * scale;
