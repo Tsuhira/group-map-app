@@ -30,6 +30,8 @@ export function useAuth() {
     )
       .then(res => res.json())
       .then(data => {
+        console.log("[useAuth] token exchange response keys:", Object.keys(data));
+        console.log("[useAuth] localId:", data.localId, "idToken exists:", !!data.idToken);
         if (data.idToken) {
           setUser({ uid: data.localId, idToken: data.idToken });
         } else {
