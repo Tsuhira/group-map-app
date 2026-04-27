@@ -117,7 +117,7 @@ export default function MapCanvas({
     const height = svgEl.clientHeight;
     const bounds = g.node().getBBox();
     if (!bounds.width || !bounds.height) return;
-    const padding = width < 600 ? 10 : 40;
+    const padding = width < 1000 ? 10 : 40;
     const scale = Math.min(
       (width - padding * 2) / bounds.width,
       (height - padding * 2) / bounds.height
