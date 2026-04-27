@@ -12,7 +12,7 @@ function newDraft(parentId) {
     parentId: parentId === ROOT_SENTINEL ? null : parentId,
     pinLevel: "",
     active: true,
-    status: "",
+    status: "プロスペクト",
     joinDate: new Date().toISOString().split("T")[0],
     note: "",
   };

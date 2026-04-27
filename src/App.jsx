@@ -39,7 +39,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchIndex, setSearchIndex] = useState(0);
   const [filterActive, setFilterActive] = useState("all");
-  const [filterStatuses, setFilterStatuses] = useState(new Set());
+  const [filterStatuses, setFilterStatuses] = useState(new Set(["ABO", "PC"]));
   const [showFilter, setShowFilter] = useState(false);
   const fitRef = useRef(null);
   const headerRef = useRef(null);
