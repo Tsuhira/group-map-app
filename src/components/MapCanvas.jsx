@@ -111,7 +111,10 @@ export default function MapCanvas({
     return startId ? map[startId] : null;
   }, [nodes, rootNodeId, filterActive, filterStatuses]);
 
-  const fitToScreen = useCallback((svg, g, width, height) => {
+  const fitToScreen = useCallback((svg, g) => {
+    const svgEl = svg.node();
+    const width = svgEl.clientWidth;
+    const height = svgEl.clientHeight;
     const bounds = g.node().getBBox();
     if (!bounds.width || !bounds.height) return;
     const padding = 60;
@@ -195,7 +198,7 @@ export default function MapCanvas({
     svg.call(zoom);
 
     const g = svg.append("g");
-    if (fitRef) fitRef.current = () => fitToScreen(svg, g, width, height);
+    if (fitRef) fitRef.current = () => fitToScreen(svg, g);
 
     const data = buildHierarchy();
     if (!data) return;
@@ -348,13 +351,16 @@ export default function MapCanvas({
       .force("y", d3.forceY(0).strength(0.04))
       .alphaDecay(0.018)
       .on("tick", ticked)
-      .on("end", () => fitToScreen(svg, g, width, height));
+      .on("end", () => fitToScreen(svg, g));
 
     simulationRef.current = simulation;
     svg.call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2));
-    setTimeout(() => fitToScreen(svg, g, width, height), 80);
+    setTimeout(() => fitToScreen(svg, g), 80);
 
-    return () => { simulation.stop(); };
+    const ro = new ResizeObserver(() => fitToScreen(svg, g));
+    ro.observe(svgEl);
+
+    return () => { simulation.stop(); ro.disconnect(); };
   }, [nodes, rootNodeId, filterActive, filterStatuses, labelMode, buildHierarchy, fitToScreen,
       onSelectNode, onContextMenu, fitRef, currentUserUid]);
 
