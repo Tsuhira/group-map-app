@@ -1,4 +1,4 @@
-import { Maximize2, Tag, Tags, Search, SlidersHorizontal, Download, Upload, UserCircle2 } from "lucide-react";
+import { Maximize2, Tag, Tags, Search, SlidersHorizontal, Download, Upload, UserCircle2, Globe2 } from "lucide-react";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 
 export default function Header({
@@ -7,6 +7,7 @@ export default function Header({
   filterActive, onFilterToggle,
   onExport, onImport,
   mode, userNodeId, onGoToMyNode,
+  hasGlobalMap, onGoToGlobalMap,
 }) {
   const { isMobile, isTablet } = useBreakpoint();
 
@@ -37,6 +38,9 @@ export default function Header({
       <div style={s.controls}>
         {mode === "firestore" && (
           <span style={s.modeBadge} title="くまさん王国と同期中">🐻</span>
+        )}
+        {hasGlobalMap && (
+          <IconBtn icon={<Globe2 size={15} />} onClick={onGoToGlobalMap} title="全体マップ" />
         )}
         {userNodeId && (
           <IconBtn icon={<UserCircle2 size={15} />} onClick={onGoToMyNode} title="自分のノードへ" />

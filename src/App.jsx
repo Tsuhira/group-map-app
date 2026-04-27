@@ -62,6 +62,13 @@ export default function App() {
     ? (nodes.find(n => n.userId === user.uid)?.id ?? null)
     : null;
 
+  // ツリーの真のルート（全体マップの起点）
+  const trueRootId = nodes?.find(n => !n.parentId)?.id ?? null;
+
+  const handleGoToGlobalMap = useCallback(() => {
+    if (trueRootId) handleSetRoot(trueRootId);
+  }, [trueRootId, handleSetRoot]);
+
   const searchMatchIds = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q || !nodes) return [];
@@ -186,6 +193,8 @@ export default function App() {
           mode={mode}
           userNodeId={userNodeId}
           onGoToMyNode={() => userNodeId && handleSetRoot(userNodeId)}
+          hasGlobalMap={!!trueRootId}
+          onGoToGlobalMap={handleGoToGlobalMap}
         />
         {showFilter && (
           <FilterPanel
@@ -216,6 +225,7 @@ export default function App() {
           onSelectNode={setSelectedNodeId}
           onContextMenu={handleContextMenu}
           fitRef={fitRef}
+          currentUserUid={user?.uid}
         />
         <Sidebar
           node={selectedNode}

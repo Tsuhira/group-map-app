@@ -18,6 +18,7 @@ export default function MapCanvas({
   nodes, rootNodeId, selectedNodeId, labelMode,
   highlightIds, focusNodeId, filterActive,
   onSelectNode, onContextMenu, fitRef,
+  currentUserUid,
 }) {
   const svgRef = useRef(null);
   const zoomRef = useRef(null);
@@ -181,15 +182,23 @@ export default function MapCanvas({
     nodeG.append("ellipse")
       .attr("rx", nodeRx)
       .attr("ry", d => d.data.active ? nodeRy(d) : NODE_RY)
-      .attr("fill", d => d.data.active ? "#1e4470" : "#1a2a3a")
+      .attr("fill", d => {
+        if (!d.data.active) return "#1a2a3a";
+        if (d.data.userId === currentUserUid) return "#0e3d2f";
+        if (d.data.userId) return "#2a1a45";
+        return "#1e4470";
+      })
       .attr("stroke", d => {
         if (highlightIds?.has(d.data.id)) return "#fbbf24";
         if (d.data.id === selectedNodeId) return "#ffffff";
+        if (d.data.userId === currentUserUid) return "#6ee7b7";
+        if (d.data.userId) return "#a78bfa";
         return "rgba(232,213,176,0.35)";
       })
       .attr("stroke-width", d => {
         if (highlightIds?.has(d.data.id)) return 2.5;
         if (d.data.id === selectedNodeId) return 2;
+        if (d.data.userId) return 2;
         return 1.5;
       })
       .attr("filter", d => d.data.id === selectedNodeId ? "url(#glow)" : null)
@@ -233,7 +242,7 @@ export default function MapCanvas({
     setTimeout(() => fitToScreen(svg, g, width, height), 50);
 
   }, [nodes, rootNodeId, selectedNodeId, labelMode, highlightIds, filterActive,
-      buildHierarchy, fitToScreen, onSelectNode, onContextMenu, fitRef]);
+      buildHierarchy, fitToScreen, onSelectNode, onContextMenu, fitRef, currentUserUid]);
 
   return (
     <svg
