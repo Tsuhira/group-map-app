@@ -237,12 +237,7 @@ export default function MapCanvas({
       .selectAll("line")
       .data(simLinks)
       .join("line")
-      .attr("stroke", d => {
-        const id = typeof d.target === "object" ? d.target.id : d.target;
-        return nodeById.get(id)?.data.active
-          ? "rgba(255,255,255,0.25)"
-          : "rgba(255,255,255,0.08)";
-      })
+      .attr("stroke", "rgba(255,255,255,0.25)")
       .attr("stroke-width", 1.5)
       .attr("stroke-dasharray", d => {
         const id = typeof d.target === "object" ? d.target.id : d.target;
