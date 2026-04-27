@@ -184,14 +184,14 @@ export default function MapCanvas({
       .attr("ry", d => d.data.active ? nodeRy(d) : NODE_RY)
       .attr("fill", d => {
         if (!d.data.active) return "#1a2a3a";
-        if (d.data.userId === currentUserUid) return "#0e3d2f";
+        if (currentUserUid && d.data.userId === currentUserUid) return "#0e3d2f";
         if (d.data.userId) return "#2a1a45";
         return "#1e4470";
       })
       .attr("stroke", d => {
         if (highlightIds?.has(d.data.id)) return "#fbbf24";
         if (d.data.id === selectedNodeId) return "#ffffff";
-        if (d.data.userId === currentUserUid) return "#6ee7b7";
+        if (currentUserUid && d.data.userId === currentUserUid) return "#6ee7b7";
         if (d.data.userId) return "#a78bfa";
         return "rgba(232,213,176,0.35)";
       })
