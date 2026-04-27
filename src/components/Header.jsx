@@ -1,4 +1,4 @@
-import { Maximize2, Tag, Tags, Search, SlidersHorizontal, Download, Upload, UserCircle2, Globe2 } from "lucide-react";
+import { Maximize2, Tag, Tags, Search, SlidersHorizontal, Download, Upload, UserCircle2 } from "lucide-react";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 
 export default function Header({
@@ -40,7 +40,9 @@ export default function Header({
           <span style={s.modeBadge} title="くまさん王国と同期中">🐻</span>
         )}
         {hasGlobalMap && (
-          <IconBtn icon={<Globe2 size={15} />} onClick={onGoToGlobalMap} title="全体マップ" />
+          <button style={s.btn} onClick={onGoToGlobalMap} title="全体マップ">
+            <span style={{ fontSize: "14px", lineHeight: 1 }}>🌐</span>
+          </button>
         )}
         {userNodeId && (
           <IconBtn icon={<UserCircle2 size={15} />} onClick={onGoToMyNode} title="自分のノードへ" />
