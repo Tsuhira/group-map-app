@@ -10,11 +10,11 @@ export default function App() {
     sampleNodes.find(n => !n.parentId)?.id ?? null
   );
   const [selectedNodeId, setSelectedNodeId] = useState(null);
-  const [layoutDir, setLayoutDir] = useState("TB");
+  const [labelMode, setLabelMode] = useState("name");
   const fitRef = useRef(null);
 
-  const handleLayoutToggle = () =>
-    setLayoutDir(d => (d === "TB" ? "LR" : "TB"));
+  const handleLabelModeToggle = () =>
+    setLabelMode(m => (m === "name" ? "name+rank" : "name"));
 
   const handleFitScreen = useCallback(() => {
     fitRef.current?.();
@@ -23,8 +23,8 @@ export default function App() {
   return (
     <div style={s.app}>
       <Header
-        layoutDir={layoutDir}
-        onLayoutToggle={handleLayoutToggle}
+        labelMode={labelMode}
+        onLabelModeToggle={handleLabelModeToggle}
         onFitScreen={handleFitScreen}
       />
       <div style={s.main}>
@@ -32,7 +32,7 @@ export default function App() {
           nodes={nodes}
           rootNodeId={rootNodeId}
           selectedNodeId={selectedNodeId}
-          layoutDir={layoutDir}
+          labelMode={labelMode}
           onSelectNode={setSelectedNodeId}
           fitRef={fitRef}
         />

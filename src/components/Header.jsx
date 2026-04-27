@@ -1,6 +1,6 @@
-import { ZoomIn, ZoomOut, Maximize2, AlignLeft, AlignCenter } from "lucide-react";
+import { Maximize2, Tag, Tags } from "lucide-react";
 
-export default function Header({ layoutDir, onLayoutToggle, onFitScreen }) {
+export default function Header({ labelMode, onLabelModeToggle, onFitScreen }) {
   return (
     <header style={s.header}>
       <span style={s.title}>グループマップ</span>
@@ -8,9 +8,11 @@ export default function Header({ layoutDir, onLayoutToggle, onFitScreen }) {
         <button style={s.btn} onClick={onFitScreen} title="全体フィット">
           <Maximize2 size={16} />
         </button>
-        <button style={s.btn} onClick={onLayoutToggle} title="レイアウト切替">
-          {layoutDir === "TB" ? <AlignLeft size={16} /> : <AlignCenter size={16} />}
-          <span style={s.btnLabel}>{layoutDir === "TB" ? "横向き" : "縦向き"}</span>
+        <button style={s.btn} onClick={onLabelModeToggle} title="ラベル表示切替">
+          {labelMode === "name" ? <Tag size={16} /> : <Tags size={16} />}
+          <span style={s.btnLabel}>
+            {labelMode === "name" ? "名前のみ" : "名前+ランク"}
+          </span>
         </button>
       </div>
     </header>
