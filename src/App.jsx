@@ -8,9 +8,11 @@ import { sampleNodes } from "./data/sampleNodes";
 
 export default function App() {
   const [nodes, setNodes] = useState(sampleNodes);
-  const [rootNodeId, setRootNodeId] = useState(
-    sampleNodes.find(n => !n.parentId)?.id ?? null
-  );
+  const [rootNodeId, setRootNodeId] = useState(() => {
+    const stored = localStorage.getItem("rootNodeId");
+    const dataRootId = sampleNodes.find(n => !n.parentId)?.id ?? null;
+    return sampleNodes.some(n => n.id === stored) ? stored : dataRootId;
+  });
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [labelMode, setLabelMode] = useState("name");
   const [addingForId, setAddingForId] = useState(null);
@@ -42,6 +44,12 @@ export default function App() {
 
   const handleAddChild = useCallback((parentId) => {
     setAddingForId(parentId);
+    setSelectedNodeId(null);
+  }, []);
+
+  const handleSetRoot = useCallback((id) => {
+    setRootNodeId(id);
+    localStorage.setItem("rootNodeId", id);
     setSelectedNodeId(null);
   }, []);
 
@@ -77,17 +85,19 @@ export default function App() {
           node={selectedNode}
           addingForId={addingForId}
           nodes={nodes}
+          rootNodeId={rootNodeId}
           onClose={handleSidebarClose}
           onUpdate={handleUpdateNode}
           onAdd={handleAddNode}
           onDelete={handleDeleteNode}
           onAddChild={handleAddChild}
+          onSetRoot={handleSetRoot}
         />
       </div>
       <Breadcrumb
         nodes={nodes}
         rootNodeId={rootNodeId}
-        onSetRoot={id => { setRootNodeId(id); setSelectedNodeId(null); }}
+        onSetRoot={handleSetRoot}
       />
       {contextMenu && contextNode && (
         <ContextMenu
@@ -97,7 +107,7 @@ export default function App() {
           hasChildren={contextHasChildren}
           onEdit={() => setSelectedNodeId(contextNode.id)}
           onAddChild={() => handleAddChild(contextNode.id)}
-          onSetRoot={() => { setRootNodeId(contextNode.id); setSelectedNodeId(null); }}
+          onSetRoot={() => handleSetRoot(contextNode.id)}
           onDelete={() => {
             if (!window.confirm(`「${contextNode.name}」を削除しますか？`)) return;
             handleDeleteNode(contextNode.id);

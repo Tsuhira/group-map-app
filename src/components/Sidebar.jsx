@@ -12,7 +12,7 @@ function newDraft(parentId) {
   };
 }
 
-export default function Sidebar({ node, addingForId, nodes, onClose, onUpdate, onAdd, onDelete, onAddChild }) {
+export default function Sidebar({ node, addingForId, nodes, rootNodeId, onClose, onUpdate, onAdd, onDelete, onAddChild, onSetRoot }) {
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState(null);
   const [error, setError] = useState("");
@@ -137,6 +137,9 @@ export default function Sidebar({ node, addingForId, nodes, onClose, onUpdate, o
           <div style={s.actions}>
             <button style={s.actBtn} onClick={startEdit}>編集</button>
             <button style={s.actBtn} onClick={() => onAddChild(node.id)}>＋ 子ノードを追加</button>
+            {node.id !== rootNodeId && (
+              <button style={s.actBtn} onClick={() => onSetRoot(node.id)}>📌 規定ノードに設定</button>
+            )}
             <button
               style={{ ...s.actBtn, ...s.delBtn, opacity: hasChildren ? 0.4 : 1 }}
               disabled={hasChildren}
