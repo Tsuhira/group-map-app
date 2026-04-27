@@ -4,14 +4,73 @@ import * as d3 from "d3";
 const NODE_RX = 70;
 const NODE_RY = 28;
 const NODE_RY_2LINE = 36;
-const MIN_GAP = 20; // 輪郭間の最小隙間(px)
+const MIN_GAP = 14;
 
-// 放射方向が水平になる位置（円の左右端）でも重ならないための最低値
-// = 2×rx + MIN_GAP = 160px
-const LEVEL_RADIUS = NODE_RX * 2 + MIN_GAP;
+// Ellipse boundary radius in the direction (dx, dy)
+function ellipseR(dx, dy, rx, ry) {
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-9) return rx;
+  const c = dx / len, s = dy / len;
+  return (rx * ry) / Math.sqrt((ry * c) ** 2 + (rx * s) ** 2);
+}
 
-function radialPoint(angle, r) {
-  return [r * Math.cos(angle - Math.PI / 2), r * Math.sin(angle - Math.PI / 2)];
+// Custom force: ellipse-aware collision (no overlap)
+function forceEllipseCollide(nodeRxFn, nodeRyFn, gap) {
+  let ns;
+  function force(alpha) {
+    for (let i = 0; i < ns.length - 1; i++) {
+      const a = ns[i];
+      for (let j = i + 1; j < ns.length; j++) {
+        const b = ns[j];
+        const dx = (b.x - a.x) || 1e-6;
+        const dy = b.y - a.y;
+        const d = Math.hypot(dx, dy);
+        const minD =
+          ellipseR(dx, dy, nodeRxFn(a), nodeRyFn(a)) +
+          ellipseR(-dx, -dy, nodeRxFn(b), nodeRyFn(b)) +
+          gap;
+        if (d < minD) {
+          const k = ((minD - d) / d) * alpha * 0.5;
+          const mx = dx * k, my = dy * k;
+          if (a.fx == null) { a.vx -= mx; a.vy -= my; }
+          if (b.fx == null) { b.vx += mx; b.vy += my; }
+        }
+      }
+    }
+  }
+  force.initialize = n => { ns = n; };
+  return force;
+}
+
+// Custom force: push nodes away from edges they're not connected to
+function forceEdgeClear(simLinks, nodeRxFn, nodeRyFn, gap) {
+  let ns;
+  function force(alpha) {
+    const str = alpha * 0.12;
+    for (const link of simLinks) {
+      const src = link.source, tgt = link.target;
+      if (typeof src !== "object" || typeof tgt !== "object") continue;
+      const ex = tgt.x - src.x, ey = tgt.y - src.y;
+      const eLen2 = ex * ex + ey * ey;
+      if (eLen2 < 1) continue;
+      for (const n of ns) {
+        if (n === src || n === tgt) continue;
+        const px = n.x - src.x, py = n.y - src.y;
+        let tp = (px * ex + py * ey) / eLen2;
+        tp = Math.max(0, Math.min(1, tp));
+        const cx = src.x + tp * ex, cy = src.y + tp * ey;
+        const dx = n.x - cx, dy = n.y - cy;
+        const dist = Math.hypot(dx, dy) || 1e-6;
+        const clear = ellipseR(dx, dy, nodeRxFn(n), nodeRyFn(n)) + gap;
+        if (dist < clear) {
+          const k = ((clear - dist) / dist) * str;
+          if (n.fx == null) { n.vx += dx * k; n.vy += dy * k; }
+        }
+      }
+    }
+  }
+  force.initialize = n => { ns = n; };
+  return force;
 }
 
 export default function MapCanvas({
@@ -23,18 +82,23 @@ export default function MapCanvas({
   const svgRef = useRef(null);
   const zoomRef = useRef(null);
   const nodePositionsRef = useRef({});
+  const simulationRef = useRef(null);
+
+  // Refs to keep current visual-only props accessible in main effect without re-running it
+  const selectedNodeIdRef = useRef(selectedNodeId);
+  const highlightIdsRef = useRef(highlightIds);
+  useEffect(() => { selectedNodeIdRef.current = selectedNodeId; }, [selectedNodeId]);
+  useEffect(() => { highlightIdsRef.current = highlightIds; }, [highlightIds]);
 
   const buildHierarchy = useCallback(() => {
     const map = Object.fromEntries(nodes.map(n => [n.id, { ...n, children: [] }]));
     const startId = rootNodeId ?? nodes.find(n => !n.parentId)?.id;
-
     const visible = (n) => {
       if (!n || n.id === startId) return true;
       if (filterActive === "active") return n.active;
       if (filterActive === "inactive") return !n.active;
       return true;
     };
-
     nodes.forEach(n => {
       if (!visible(n) || !n.parentId) return;
       let parent = map[n.parentId];
@@ -43,7 +107,6 @@ export default function MapCanvas({
       }
       if (parent) parent.children.push(map[n.id]);
     });
-
     return startId ? map[startId] : null;
   }, [nodes, rootNodeId, filterActive]);
 
@@ -64,6 +127,7 @@ export default function MapCanvas({
     );
   }, []);
 
+  // Focus on search result
   useEffect(() => {
     if (!focusNodeId || !zoomRef.current || !svgRef.current) return;
     const pos = nodePositionsRef.current[focusNodeId];
@@ -75,7 +139,36 @@ export default function MapCanvas({
     );
   }, [focusNodeId]);
 
+  // Visual-only update: selection & highlight strokes (no simulation restart)
   useEffect(() => {
+    if (!svgRef.current) return;
+    d3.select(svgRef.current)
+      .select(".nodes")
+      .selectAll("g")
+      .select(".node-ellipse")
+      .attr("stroke", d => {
+        if (highlightIds?.has(d.id)) return "#fbbf24";
+        if (d.id === selectedNodeId) return "#ffffff";
+        if (currentUserUid && d.data.userId === currentUserUid) return "#6ee7b7";
+        if (d.data.userId) return "#a78bfa";
+        return "rgba(232,213,176,0.35)";
+      })
+      .attr("stroke-width", d => {
+        if (highlightIds?.has(d.id)) return 2.5;
+        if (d.id === selectedNodeId) return 2;
+        if (d.data.userId) return 2;
+        return 1.5;
+      })
+      .attr("filter", d => d.id === selectedNodeId ? "url(#glow)" : null);
+  }, [selectedNodeId, highlightIds, currentUserUid]);
+
+  // Main effect: SVG setup + force simulation
+  useEffect(() => {
+    if (simulationRef.current) {
+      simulationRef.current.stop();
+      simulationRef.current = null;
+    }
+
     const svgEl = svgRef.current;
     const svg = d3.select(svgEl);
     const width = svgEl.clientWidth;
@@ -106,82 +199,80 @@ export default function MapCanvas({
     if (!data) return;
 
     const root = d3.hierarchy(data, d => d.children?.length ? d.children : null);
-    const maxDepth = root.height || 1;
 
-    // separation: 弧長 = angle × r = (2×rx + gap) となるよう逆算
-    // LEVEL_RADIUS = 2×rx + gap なので factor/depth に整理できる
-    d3.tree()
-      .size([2 * Math.PI, maxDepth * LEVEL_RADIUS])
-      .separation((a, b) => {
-        const factor = a.parent === b.parent ? 1 : 1.3;
-        return factor / a.depth;
-      })
-      (root);
+    // Use radial tree for crossing-free initial positions
+    d3.tree().size([2 * Math.PI, (root.height || 1) * (NODE_RX * 2 + MIN_GAP)])(root);
 
-    // ノード位置を保存
-    nodePositionsRef.current = {};
-    root.descendants().forEach(d => {
-      const [x, y] = radialPoint(d.x, d.y);
-      nodePositionsRef.current[d.data.id] = { x, y };
-    });
+    const show2Line = n => labelMode === "name+rank" && !!n.data?.pinLevel;
+    const nodeRxFn = n => n.data?.active ? NODE_RX : NODE_RY;
+    const nodeRyFn = n => n.data?.active ? (show2Line(n) ? NODE_RY_2LINE : NODE_RY) : NODE_RY;
 
-    const show2Line = d => labelMode === "name+rank" && !!d.data.pinLevel;
-    const nodeRy = d => show2Line(d) ? NODE_RY_2LINE : NODE_RY;
-    // 非アクティブは円: rx=ry=NODE_RY
-    const nodeRx = d => d.data.active ? NODE_RX : NODE_RY;
+    // Build simulation nodes (initial positions from tree layout)
+    const simNodes = root.descendants().map(d => ({
+      id: d.data.id,
+      data: d.data,
+      depth: d.depth,
+      x: d.y * Math.cos(d.x - Math.PI / 2),
+      y: d.y * Math.sin(d.x - Math.PI / 2),
+    }));
 
-    // 接続線
-    g.append("g").attr("class", "links")
+    const simLinks = root.links().map(l => ({
+      source: l.source.data.id,
+      target: l.target.data.id,
+    }));
+
+    const nodeById = new Map(simNodes.map(n => [n.id, n]));
+
+    // Fix root node at origin
+    const rootSim = nodeById.get(rootNodeId ?? simNodes[0]?.id);
+    if (rootSim) { rootSim.fx = 0; rootSim.fy = 0; }
+
+    const curSelectedId = selectedNodeIdRef.current;
+    const curHighlightIds = highlightIdsRef.current;
+
+    // Render links (positions updated each tick)
+    const linkSel = g.append("g").attr("class", "links")
       .selectAll("line")
-      .data(root.links())
+      .data(simLinks)
       .join("line")
-      .attr("x1", d => radialPoint(d.source.x, d.source.y)[0])
-      .attr("y1", d => radialPoint(d.source.x, d.source.y)[1])
-      .attr("x2", d => radialPoint(d.target.x, d.target.y)[0])
-      .attr("y2", d => radialPoint(d.target.x, d.target.y)[1])
-      .attr("stroke", d => d.target.data.active
-        ? "rgba(255,255,255,0.25)"
-        : "rgba(255,255,255,0.08)"
-      )
+      .attr("stroke", d => {
+        const id = typeof d.target === "object" ? d.target.id : d.target;
+        return nodeById.get(id)?.data.active
+          ? "rgba(255,255,255,0.25)"
+          : "rgba(255,255,255,0.08)";
+      })
       .attr("stroke-width", 1.5)
-      .attr("stroke-dasharray", d => d.target.data.active ? null : "5 4");
+      .attr("stroke-dasharray", d => {
+        const id = typeof d.target === "object" ? d.target.id : d.target;
+        return nodeById.get(id)?.data.active ? null : "5 4";
+      });
 
-    // ノードグループ
+    // Render node groups
     const nodeG = g.append("g").attr("class", "nodes")
       .selectAll("g")
-      .data(root.descendants())
+      .data(simNodes, d => d.id)
       .join("g")
-      .attr("transform", d => {
-        const [x, y] = radialPoint(d.x, d.y);
-        return `translate(${x},${y})`;
-      })
       .attr("cursor", "pointer")
       .style("opacity", 0)
-      .on("click", (event, d) => {
-        event.stopPropagation();
-        onSelectNode(d.data.id);
-      })
+      .on("click", (event, d) => { event.stopPropagation(); onSelectNode(d.data.id); })
       .on("contextmenu", (event, d) => {
         event.preventDefault();
         event.stopPropagation();
         onContextMenu?.(d.data.id, event.clientX, event.clientY);
       })
       .on("mouseenter", function () {
-        d3.select(this).select("ellipse")
-          .transition().duration(120)
-          .attr("transform", "scale(1.05)");
+        d3.select(this).select(".node-ellipse").transition().duration(120).attr("transform", "scale(1.05)");
       })
       .on("mouseleave", function () {
-        d3.select(this).select("ellipse")
-          .transition().duration(120)
-          .attr("transform", "scale(1)");
+        d3.select(this).select(".node-ellipse").transition().duration(120).attr("transform", "scale(1)");
       });
 
     nodeG.transition().duration(300).style("opacity", 1);
 
     nodeG.append("ellipse")
-      .attr("rx", nodeRx)
-      .attr("ry", d => d.data.active ? nodeRy(d) : NODE_RY)
+      .attr("class", "node-ellipse")
+      .attr("rx", nodeRxFn)
+      .attr("ry", nodeRyFn)
       .attr("fill", d => {
         if (!d.data.active) return "#1a2a3a";
         if (currentUserUid && d.data.userId === currentUserUid) return "#0e3d2f";
@@ -189,19 +280,19 @@ export default function MapCanvas({
         return "#1e4470";
       })
       .attr("stroke", d => {
-        if (highlightIds?.has(d.data.id)) return "#fbbf24";
-        if (d.data.id === selectedNodeId) return "#ffffff";
+        if (curHighlightIds?.has(d.id)) return "#fbbf24";
+        if (d.id === curSelectedId) return "#ffffff";
         if (currentUserUid && d.data.userId === currentUserUid) return "#6ee7b7";
         if (d.data.userId) return "#a78bfa";
         return "rgba(232,213,176,0.35)";
       })
       .attr("stroke-width", d => {
-        if (highlightIds?.has(d.data.id)) return 2.5;
-        if (d.data.id === selectedNodeId) return 2;
+        if (curHighlightIds?.has(d.id)) return 2.5;
+        if (d.id === curSelectedId) return 2;
         if (d.data.userId) return 2;
         return 1.5;
       })
-      .attr("filter", d => d.data.id === selectedNodeId ? "url(#glow)" : null)
+      .attr("filter", d => d.id === curSelectedId ? "url(#glow)" : null)
       .attr("opacity", d => d.data.active ? 1 : 0.5);
 
     nodeG.filter(d => d.data.active)
@@ -224,12 +315,10 @@ export default function MapCanvas({
       .attr("pointer-events", "none")
       .text(d => d.data.pinLevel);
 
-    // 📌 アイコン（ノードの実際のサイズに合わせて配置）
     nodeG.filter(d => d.data.id === rootNodeId)
       .append("text")
-      .attr("x", d => -nodeRx(d) + 2)
-      .attr("y", d => -(d.data.active ? nodeRy(d) : NODE_RY) + 2)
-
+      .attr("x", d => -nodeRxFn(d) + 2)
+      .attr("y", d => -nodeRyFn(d) + 2)
       .attr("dominant-baseline", "hanging")
       .attr("font-size", "11px")
       .attr("pointer-events", "none")
@@ -238,16 +327,37 @@ export default function MapCanvas({
     svg.on("click", () => onSelectNode(null))
        .on("contextmenu", e => e.preventDefault());
 
-    svg.call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2));
-    setTimeout(() => fitToScreen(svg, g, width, height), 50);
+    function ticked() {
+      simNodes.forEach(n => { nodePositionsRef.current[n.id] = { x: n.x, y: n.y }; });
+      nodeG.attr("transform", d => `translate(${d.x},${d.y})`);
+      linkSel
+        .attr("x1", d => d.source.x)
+        .attr("y1", d => d.source.y)
+        .attr("x2", d => d.target.x)
+        .attr("y2", d => d.target.y);
+    }
 
-  }, [nodes, rootNodeId, selectedNodeId, labelMode, highlightIds, filterActive,
-      buildHierarchy, fitToScreen, onSelectNode, onContextMenu, fitRef, currentUserUid]);
+    const simulation = d3.forceSimulation(simNodes)
+      .force("link", d3.forceLink(simLinks)
+        .id(d => d.id)
+        .distance(d => nodeRxFn(d.source) + nodeRxFn(d.target) + MIN_GAP * 3)
+        .strength(0.65))
+      .force("charge", d3.forceManyBody().strength(-450))
+      .force("collide", forceEllipseCollide(nodeRxFn, nodeRyFn, MIN_GAP))
+      .force("edgeClear", forceEdgeClear(simLinks, nodeRxFn, nodeRyFn, MIN_GAP))
+      .alphaDecay(0.018)
+      .on("tick", ticked)
+      .on("end", () => fitToScreen(svg, g, width, height));
+
+    simulationRef.current = simulation;
+    svg.call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2));
+    setTimeout(() => fitToScreen(svg, g, width, height), 80);
+
+    return () => { simulation.stop(); };
+  }, [nodes, rootNodeId, filterActive, labelMode, buildHierarchy, fitToScreen,
+      onSelectNode, onContextMenu, fitRef, currentUserUid]);
 
   return (
-    <svg
-      ref={svgRef}
-      style={{ width: "100%", height: "100%", display: "block" }}
-    />
+    <svg ref={svgRef} style={{ width: "100%", height: "100%", display: "block" }} />
   );
 }
