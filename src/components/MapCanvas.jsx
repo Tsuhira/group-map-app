@@ -301,7 +301,7 @@ export default function MapCanvas({
       .attr("dominant-baseline", "middle")
       .attr("dy", d => show2Line(d) ? "-0.55em" : "0")
       .attr("fill", "var(--gold)")
-      .attr("font-size", "12px")
+      .attr("font-size", d => show2Line(d) ? "12px" : "18px")
       .attr("pointer-events", "none")
       .text(d => d.data.name);
 
