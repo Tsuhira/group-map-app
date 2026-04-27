@@ -46,8 +46,6 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, onClose,
 
   const validate = (f) => {
     if (!f.name.trim()) return "名前は必須です";
-    const siblings = nodes.filter(n => n.parentId === f.parentId && n.id !== f.id);
-    if (siblings.some(n => n.name === f.name.trim())) return "同じ親の配下に同名のノードがあります";
     if (f.joinDate && new Date(f.joinDate) > new Date()) return "入会日は今日以前の日付を入力してください";
     return "";
   };
