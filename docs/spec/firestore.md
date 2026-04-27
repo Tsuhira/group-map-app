@@ -3,61 +3,96 @@
 ## Firestore データ構造
 
 ```
-users/{uid}/groupmap/nodes/{nodeId}
+groupmap/{nodeId}
 ```
 
-各ノードを独立したドキュメントとして保存。
-リアルタイム同期（`onSnapshot`）で複数端末から同時編集可。
+全ユーザー共通のフラットなコレクション。各ノードを独立したドキュメントとして保存。
+リアルタイム同期は行わない（操作ごとに REST API を呼び出し、ローカル状態を即時更新）。
 
-### ノードドキュメント
+### ノードドキュメント（Firestore 型付きフィールド形式）
 
 ```json
 {
-  "id": "uuid-xxx",
-  "name": "山田太郎",
-  "parentId": "uuid-yyy",
-  "rank": "platinum",
-  "active": true,
-  "joinDate": "2022-04-01",
-  "note": "備考テキスト",
-  "createdAt": "Timestamp",
-  "updatedAt": "Timestamp"
+  "fields": {
+    "id":        { "stringValue": "uuid-xxx" },
+    "name":      { "stringValue": "山田太郎" },
+    "parentId":  { "stringValue": "uuid-yyy" },
+    "pinLevel":  { "stringValue": "" },
+    "active":    { "booleanValue": true },
+    "joinDate":  { "stringValue": "2022-04-01" },
+    "note":      { "stringValue": "" },
+    "userId":    { "nullValue": null }
+  }
 }
 ```
+
+`parentId` がルートの場合は `{ "nullValue": null }`。
 
 ---
 
 ## KUMA KINGDOM 連携（SSO）
 
 - KUMA KINGDOM のアプリハブから `?kumaToken=...` 付きで遷移
-- `signInWithCustomToken()` でサインイン
-- サインイン後、Firestore からそのユーザーのノードデータを読み込む
-- 未ログインの場合は `localStorage` にデータを保存（ローカルのみ）
+- Firebase Auth **REST API** でサインイン（SDK は使用しない）
+- サインイン後、Firestore REST API からデータを読み込む
+- `?kumaToken=` は遷移直後に `history.replaceState` で URL から除去する
+- kumaToken がない場合はスタンドアロンモード（sampleNodes）
 
 ### kuma-app 側への登録
 
 | 項目 | 値 |
 |------|-----|
-| appId | `groupmap` |
+| appId | `"group-map"` |
 | アプリ名 | グループマップ |
+| 絵文字 | 🗺️ |
 | URL | https://tsuhira.github.io/group-map-app/ |
 
-`functions/index.js` の `ALLOWED_APP_IDS` に `"groupmap"` を追加する。
+`functions/index.js` の `ALLOWED_APP_IDS` に `"group-map"` を追加済み。
+
+---
+
+## 認証（Firebase Auth REST API）
+
+Firebase SDK を使わず REST API で直接カスタムトークンを交換する。
+
+```
+POST https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key={API_KEY}
+Body: { token: kumaToken, returnSecureToken: true }
+Response: { localId, idToken, refreshToken, expiresIn }
+```
+
+取得した `idToken` を Firestore REST API のリクエストヘッダーに使用する。
+
+---
+
+## Firestore REST API
+
+ベース URL: `https://firestore.googleapis.com/v1/projects/kuma-6c130/databases/(default)/documents`
+
+| 操作 | メソッド | パス |
+|------|---------|------|
+| 一覧取得 | GET | `/groupmap` |
+| 作成/更新 | PATCH | `/groupmap/{nodeId}?updateMask.fieldPaths=id&...` |
+| 削除 | DELETE | `/groupmap/{nodeId}` |
+| 一括置換 | batchWrite | POST `/documents:batchWrite` |
+
+全リクエストに `Authorization: Bearer {idToken}` ヘッダーを付与する。
 
 ---
 
 ## Firestore セキュリティルール
 
 ```
-match /users/{userId}/groupmap/nodes/{nodeId} {
-  allow read, write: if request.auth != null && request.auth.uid == userId;
+match /groupmap/{nodeId} {
+  allow read, write: if request.auth != null;
 }
 ```
+
+全認証ユーザーが読み書き可能（認証なし＝アクセス不可）。
 
 ---
 
 ## オフライン対応
 
-- Firestore の `enableIndexedDbPersistence()` を有効化
-- オフライン時はローカルキャッシュから読み書き
-- オンライン復帰時に自動同期
+オフライン対応は実装しない。
+- オフライン時は API コールが失敗するが、ローカル状態は維持される（次回オンライン時に手動で操作が必要）

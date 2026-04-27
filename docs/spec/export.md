@@ -1,33 +1,26 @@
-# エクスポート 仕様
+# エクスポート・インポート 仕様
 
-## PNG / SVG 書き出し
+## JSON エクスポート（実装済み）
 
-- ヘッダーの「書き出し」ボタン → メニュー
-- 現在の表示（規定ノード以下のサブツリー）を書き出す
-- PNG: `canvas` に SVG を描画して `toDataURL()` でダウンロード
-- SVG: SVG ソースをそのままダウンロード
-- ファイル名: `groupmap-{YYYY-MM-DD}.{ext}`
+- ヘッダーのダウンロードアイコンボタンをクリック
+- 全ノードデータを JSON 配列として書き出す
+- ファイル名: `groupmap-{YYYY-MM-DD}.json`
+- ファイル内容: `Node[]`（`id`, `name`, `parentId`, `pinLevel`, `active`, `joinDate`, `note`, `userId`）
 
 ---
 
-## CSV インポート / エクスポート
+## JSON インポート（実装済み）
 
-### エクスポート形式
+- ヘッダーのアップロードアイコンボタンをクリック
+- JSON ファイルを選択 → パース → **上書きインポート**（既存データを全削除してインポート）
+- Firestore モード: Firestore のデータも全置換（`replaceAll` → 既存ドキュメント削除 + 新規一括書き込み）
+- スタンドアロンモード: メモリ上のデータを置換（リロードで元に戻る）
 
-```csv
-id,name,parentId,rank,active,joinDate,note
-uuid-xxx,山田太郎,,platinum,true,2022-04-01,
-uuid-yyy,鈴木花子,uuid-xxx,gold,true,2023-01-15,備考
-```
+---
 
-- 全ノードを書き出す（規定ノードのフィルターは無視）
+## PNG / SVG・CSV 書き出し（未実装）
 
-### インポート
-
-- CSV ファイルを選択 → パース → プレビュー表示
-- 「上書きインポート」: 既存データを全削除してインポート
-- 「追加インポート」: 既存データに追加（id 重複はスキップ）
-- バリデーション:
-  - 必須カラムチェック（id, name, parentId, rank）
-  - 存在しない parentId は null 扱い（ルート扱い）
-  - rank が定義外の場合は `partner` にフォールバック
+将来対応として検討中。
+- PNG: `canvas` に SVG を描画して `toDataURL()` でダウンロード
+- SVG: SVG ソースをそのままダウンロード
+- CSV: `id,name,parentId,pinLevel,active,joinDate,note` 形式での書き出し/読み込み
