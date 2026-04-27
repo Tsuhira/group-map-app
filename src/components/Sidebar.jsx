@@ -155,7 +155,7 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, on
             <dd style={s.dd}>{node.joinDate || "—"}</dd>
           </dl>
           {node.note && <p style={s.note}>{node.note}</p>}
-          {user && (
+          {user?.uid && (
             node.userId === user.uid
               ? <div style={s.myNodeBadge}>あなたのノード</div>
               : !node.userId && (
