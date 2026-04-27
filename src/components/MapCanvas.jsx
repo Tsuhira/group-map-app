@@ -10,18 +10,38 @@ function radialPoint(angle, r) {
   return [r * Math.cos(angle - Math.PI / 2), r * Math.sin(angle - Math.PI / 2)];
 }
 
-export default function MapCanvas({ nodes, rootNodeId, selectedNodeId, labelMode, onSelectNode, onContextMenu, fitRef }) {
+export default function MapCanvas({
+  nodes, rootNodeId, selectedNodeId, labelMode,
+  highlightIds, focusNodeId, filterActive,
+  onSelectNode, onContextMenu, fitRef,
+}) {
   const svgRef = useRef(null);
   const zoomRef = useRef(null);
+  const nodePositionsRef = useRef({});
 
   const buildHierarchy = useCallback(() => {
     const map = Object.fromEntries(nodes.map(n => [n.id, { ...n, children: [] }]));
-    nodes.forEach(n => {
-      if (n.parentId && map[n.parentId]) map[n.parentId].children.push(map[n.id]);
-    });
     const startId = rootNodeId ?? nodes.find(n => !n.parentId)?.id;
+
+    const visible = (n) => {
+      if (!n || n.id === startId) return true;
+      if (filterActive === "active") return n.active;
+      if (filterActive === "inactive") return !n.active;
+      return true;
+    };
+
+    nodes.forEach(n => {
+      if (!visible(n) || !n.parentId) return;
+      // 省略表示: フィルターで非表示の親を飛ばして最近傍の可視祖先にぶら下げる
+      let parent = map[n.parentId];
+      while (parent && !visible(parent)) {
+        parent = parent.parentId ? map[parent.parentId] : null;
+      }
+      if (parent) parent.children.push(map[n.id]);
+    });
+
     return startId ? map[startId] : null;
-  }, [nodes, rootNodeId]);
+  }, [nodes, rootNodeId, filterActive]);
 
   const fitToScreen = useCallback((svg, g, width, height) => {
     const bounds = g.node().getBBox();
@@ -40,6 +60,20 @@ export default function MapCanvas({ nodes, rootNodeId, selectedNodeId, labelMode
     );
   }, []);
 
+  // focusNodeId が変わったら該当ノードを画面中央に移動
+  useEffect(() => {
+    if (!focusNodeId || !zoomRef.current || !svgRef.current) return;
+    const pos = nodePositionsRef.current[focusNodeId];
+    if (!pos) return;
+    const svgEl = svgRef.current;
+    const width = svgEl.clientWidth;
+    const height = svgEl.clientHeight;
+    d3.select(svgEl).transition().duration(400).call(
+      zoomRef.current.transform,
+      d3.zoomIdentity.translate(width / 2 - pos.x, height / 2 - pos.y)
+    );
+  }, [focusNodeId]);
+
   useEffect(() => {
     const svgEl = svgRef.current;
     const svg = d3.select(svgEl);
@@ -50,7 +84,6 @@ export default function MapCanvas({ nodes, rootNodeId, selectedNodeId, labelMode
 
     const defs = svg.append("defs");
 
-    // 選択状態のグロー
     const glowFilter = defs.append("filter")
       .attr("id", "glow")
       .attr("x", "-40%").attr("y", "-40%")
@@ -60,7 +93,6 @@ export default function MapCanvas({ nodes, rootNodeId, selectedNodeId, labelMode
     feMerge.append("feMergeNode").attr("in", "blur");
     feMerge.append("feMergeNode").attr("in", "SourceGraphic");
 
-    // 非アクティブのグレースケール
     defs.append("filter")
       .attr("id", "grayscale")
       .append("feColorMatrix")
@@ -87,6 +119,13 @@ export default function MapCanvas({ nodes, rootNodeId, selectedNodeId, labelMode
       .size([2 * Math.PI, radius])
       .separation((a, b) => (a.parent === b.parent ? 1 : 2) / a.depth)
       (root);
+
+    // ノード位置を保存（focusNodeId アニメーション用）
+    nodePositionsRef.current = {};
+    root.descendants().forEach(d => {
+      const [x, y] = radialPoint(d.x, d.y);
+      nodePositionsRef.current[d.data.id] = { x, y };
+    });
 
     const show2Line = d => labelMode === "name+rank" && !!d.data.pinLevel;
     const nodeRy = d => show2Line(d) ? NODE_RY_2LINE : NODE_RY;
@@ -138,7 +177,6 @@ export default function MapCanvas({ nodes, rootNodeId, selectedNodeId, labelMode
           .attr("transform", "scale(1)");
       });
 
-    // フェードイン
     nodeG.transition().duration(300).style("opacity", 1);
 
     // 楕円
@@ -146,8 +184,16 @@ export default function MapCanvas({ nodes, rootNodeId, selectedNodeId, labelMode
       .attr("rx", NODE_RX)
       .attr("ry", nodeRy)
       .attr("fill", d => d.data.active ? "#1e4470" : "#1a2a3a")
-      .attr("stroke", d => d.data.id === selectedNodeId ? "#ffffff" : "rgba(232,213,176,0.35)")
-      .attr("stroke-width", d => d.data.id === selectedNodeId ? 2 : 1.5)
+      .attr("stroke", d => {
+        if (highlightIds?.has(d.data.id)) return "#fbbf24";
+        if (d.data.id === selectedNodeId) return "#ffffff";
+        return "rgba(232,213,176,0.35)";
+      })
+      .attr("stroke-width", d => {
+        if (highlightIds?.has(d.data.id)) return 2.5;
+        if (d.data.id === selectedNodeId) return 2;
+        return 1.5;
+      })
       .attr("filter", d => {
         if (d.data.id === selectedNodeId) return "url(#glow)";
         if (!d.data.active) return "url(#grayscale)";
@@ -192,7 +238,8 @@ export default function MapCanvas({ nodes, rootNodeId, selectedNodeId, labelMode
     svg.call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2));
     setTimeout(() => fitToScreen(svg, g, width, height), 50);
 
-  }, [nodes, rootNodeId, selectedNodeId, labelMode, buildHierarchy, fitToScreen, onSelectNode, onContextMenu, fitRef]);
+  }, [nodes, rootNodeId, selectedNodeId, labelMode, highlightIds, filterActive,
+      buildHierarchy, fitToScreen, onSelectNode, onContextMenu, fitRef]);
 
   return (
     <svg
