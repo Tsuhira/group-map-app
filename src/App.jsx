@@ -7,6 +7,25 @@ import ContextMenu from "./components/ContextMenu";
 import FilterPanel from "./components/FilterPanel";
 import { sampleNodes } from "./data/sampleNodes";
 
+function exportNodes(nodes) {
+  const json = JSON.stringify({ version: 1, nodes }, null, 2);
+  const a = Object.assign(document.createElement("a"), {
+    href: URL.createObjectURL(new Blob([json], { type: "application/json" })),
+    download: `group-map-${new Date().toISOString().slice(0, 10)}.json`,
+  });
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function validateImport(parsed) {
+  if (!parsed?.nodes || !Array.isArray(parsed.nodes)) return "nodes配列がありません";
+  for (const n of parsed.nodes) {
+    if (typeof n.id !== "string" || !n.id) return "idが不正なノードがあります";
+    if (typeof n.name !== "string") return "nameが不正なノードがあります";
+  }
+  return null;
+}
+
 export default function App() {
   const [nodes, setNodes] = useState(sampleNodes);
   const [rootNodeId, setRootNodeId] = useState(() => {
@@ -24,6 +43,7 @@ export default function App() {
   const [showFilter, setShowFilter] = useState(false);
   const fitRef = useRef(null);
   const headerRef = useRef(null);
+  const importInputRef = useRef(null);
 
   const selectedNode = nodes.find(n => n.id === selectedNodeId) ?? null;
   const contextNode = contextMenu ? nodes.find(n => n.id === contextMenu.nodeId) : null;
@@ -92,8 +112,41 @@ export default function App() {
 
   const handleFitScreen = useCallback(() => fitRef.current?.(), []);
 
+  const handleExport = useCallback(() => exportNodes(nodes), [nodes]);
+
+  const handleImport = useCallback((e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        const err = validateImport(parsed);
+        if (err) { alert(`インポートエラー: ${err}`); return; }
+        const newNodes = parsed.nodes;
+        const dataRoot = newNodes.find(n => !n.parentId);
+        setNodes(newNodes);
+        setRootNodeId(dataRoot?.id ?? null);
+        localStorage.setItem("rootNodeId", dataRoot?.id ?? "");
+        setSelectedNodeId(null);
+        setAddingForId(null);
+      } catch {
+        alert("JSONの解析に失敗しました");
+      }
+    };
+    reader.readAsText(file);
+  }, []);
+
   return (
     <div style={s.app}>
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".json"
+        style={{ display: "none" }}
+        onChange={handleImport}
+      />
       <div ref={headerRef} style={s.headerWrap}>
         <Header
           labelMode={labelMode}
@@ -106,6 +159,8 @@ export default function App() {
           onSearchNav={handleSearchNav}
           filterActive={filterActive}
           onFilterToggle={() => setShowFilter(v => !v)}
+          onExport={handleExport}
+          onImport={() => importInputRef.current?.click()}
         />
         {showFilter && (
           <FilterPanel

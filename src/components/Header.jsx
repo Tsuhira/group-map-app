@@ -1,10 +1,11 @@
-import { Maximize2, Tag, Tags, Search, SlidersHorizontal } from "lucide-react";
+import { Maximize2, Tag, Tags, Search, SlidersHorizontal, Download, Upload } from "lucide-react";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 
 export default function Header({
   labelMode, onLabelModeToggle, onFitScreen,
   searchQuery, onSearchChange, searchCount, searchIndex, onSearchNav,
   filterActive, onFilterToggle,
+  onExport, onImport,
 }) {
   const { isMobile, isTablet } = useBreakpoint();
 
@@ -44,6 +45,8 @@ export default function Header({
           onClick={onLabelModeToggle}
           title="ラベル表示切替"
         />
+        <IconBtn icon={<Download size={15} />} onClick={onExport} title="エクスポート" />
+        <IconBtn icon={<Upload size={15} />} onClick={onImport} title="インポート" />
       </div>
     </header>
   );
