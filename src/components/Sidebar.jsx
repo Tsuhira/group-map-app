@@ -97,7 +97,7 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, onClose,
     <aside style={panelStyle}>
       <button style={s.closeBtn} onClick={onClose}>✕</button>
 
-      {showForm ? (
+      {showForm && form ? (
         <div style={s.body}>
           <p style={s.heading}>{isAdding ? "ノードを追加" : "ノードを編集"}</p>
           {error && <div style={s.error}>{error}</div>}
