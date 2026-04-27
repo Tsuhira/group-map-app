@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 
+export const ROOT_SENTINEL = "__root__";
+
 function newDraft(parentId) {
   return {
     id: crypto.randomUUID(),
     name: "",
-    parentId,
+    parentId: parentId === ROOT_SENTINEL ? null : parentId,
     pinLevel: "",
     active: true,
     joinDate: new Date().toISOString().split("T")[0],
