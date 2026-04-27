@@ -65,10 +65,6 @@ export default function App() {
   // ツリーの真のルート（全体マップの起点）
   const trueRootId = nodes?.find(n => !n.parentId)?.id ?? null;
 
-  const handleGoToGlobalMap = useCallback(() => {
-    if (trueRootId) handleSetRoot(trueRootId);
-  }, [trueRootId, handleSetRoot]);
-
   const searchMatchIds = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q || !nodes) return [];
@@ -96,6 +92,10 @@ export default function App() {
     localStorage.setItem("rootNodeId", id);
     setSelectedNodeId(null);
   }, []);
+
+  const handleGoToGlobalMap = useCallback(() => {
+    if (trueRootId) handleSetRoot(trueRootId);
+  }, [trueRootId, handleSetRoot]);
 
   const handleAddNode = useCallback(async (nodeData) => {
     await addNode(nodeData);
