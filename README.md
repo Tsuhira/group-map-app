@@ -1,16 +1,116 @@
-# React + Vite
+# group-map-app
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+グループの人間関係・組織構造を可視化するインタラクティブなマップアプリ。
 
-Currently, two official plugins are available:
+**デプロイ先:** https://tsuhira.github.io/group-map-app/
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 概要
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+ノードとエッジで構成されるツリー構造を、フォースシミュレーションによって自動レイアウト表示します。くまさん王国（kuma-app）とのSSO連携により、ログインユーザーは自分自身のノードと紐付けることができます。
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 機能
+
+### マップ操作
+- **ピンチ/スクロール** でズーム、**ドラッグ** でパン
+- **フィットボタン** でマップ全体を画面に収める
+- **規定ノード設定** で任意のノードを起点にしてサブツリーを表示
+- **全体マップボタン (🌐)** でルートノード起点に戻る
+
+### ノード管理
+- ノードのクリックでサイドバーに詳細表示
+- 右クリック（長押し）でコンテキストメニュー
+- サイドバーまたはコンテキストメニューから追加・編集・削除
+
+### 検索
+- ヘッダーの検索バーで名前を部分一致検索
+- ヒットしたノードをハイライト、矢印ボタンで順番に移動
+
+### フィルター
+- **アクティブ状態：** すべて / アクティブのみ / 非アクティブのみ（ラジオ）
+- **ステータス：** ABO / PC / プロスペクト（チェックボックス、複数選択可）
+  - 未選択 = すべて表示
+  - 初期状態：アクティブのみ ＋ ABO・PC にチェック
+
+### ユーザー紐付け
+- ログイン中のユーザーは「このノードは自分」ボタンで自ノードを登録（1ユーザー1ノード）
+- 自分のノードは緑色で表示
+- 他ユーザーのノードは紫色で表示
+- 「自分のノードへ (🐻)」ボタンで自ノードを起点に切り替え
+
+### インポート / エクスポート
+- JSON形式でノードデータをエクスポート・インポート（全置換）
+
+---
+
+## ノード属性
+
+| フィールド | 内容 |
+|---|---|
+| 名前 | 必須 |
+| ステータス | 未設定 / ABO / PC / プロスペクト（新規作成時デフォルト：プロスペクト） |
+| ピンレベル | 任意テキスト（ヘッダーの「名前+ピン」モードで表示） |
+| アクティブ | 有効 / 無効 |
+| 誕生日 | 日付 |
+| 備考 | 自由テキスト |
+
+---
+
+## ノードの見た目
+
+| 条件 | 形状 | 色 |
+|---|---|---|
+| アクティブ | 楕円 (rx=70, ry=28) | 青 |
+| 非アクティブ | 円 (r=28) | 暗い青、透過 |
+| 自分のノード | 楕円 | 緑 |
+| 他ユーザーのノード | 楕円 | 紫 |
+| ステータス：プロスペクト | 楕円 | 青（輪郭・接続線が破線） |
+
+---
+
+## レイアウト
+
+D3フォースシミュレーションによる自動レイアウト。
+
+- **初期配置：** ラジアルツリーレイアウト（交差なしの状態からスタート）
+- **楕円衝突検出：** 楕円の境界半径を方向ごとに計算し、正確な重なり防止
+- **エッジ－ノード斥力：** 無関係なノードがエッジを貫通しないよう押しのける
+- **中心引力：** X/Y方向均等に引力をかけ正方形にまとまるよう調整
+
+---
+
+## SSO連携（kuma-app）
+
+kuma-appから `?kumaToken=<customToken>` 付きURLで遷移することで自動ログイン。
+
+1. kuma-app の Cloud Functions `generateAppToken` がカスタムトークンを発行
+2. group-map-app が Firebase Identity Toolkit REST API でIDトークンに交換
+3. IDトークンのJWTペイロードからUIDを取得してユーザー状態を保持
+
+Firebase SDK は使用せず、REST APIのみで実装。
+
+---
+
+## データ
+
+Firebase Firestore の `groupmap` コレクションにノードを保存。認証なしでも閲覧・操作可能（ゲストモード）。
+
+---
+
+## 開発
+
+```bash
+npm install
+npm run dev
+```
+
+### ビルド・デプロイ
+
+`main` ブランチへのプッシュで GitHub Actions が自動ビルド → GitHub Pages にデプロイ。
+
+```bash
+npm run build   # dist/ に出力
+```
