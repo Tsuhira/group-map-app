@@ -30,10 +30,9 @@ export function useAuth() {
     )
       .then(res => res.json())
       .then(data => {
-        console.log("[useAuth] token exchange response keys:", Object.keys(data));
-        console.log("[useAuth] localId:", data.localId, "idToken exists:", !!data.idToken);
         if (data.idToken) {
-          setUser({ uid: data.localId, idToken: data.idToken });
+          const payload = JSON.parse(atob(data.idToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+          setUser({ uid: payload.sub, idToken: data.idToken });
         } else {
           console.error("Token exchange failed:", data.error?.message);
           setUser(null);
