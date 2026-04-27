@@ -80,17 +80,19 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, on
     ? {
         ...s.panel,
         width: "100%",
-        height: "70vh",
+        height: "72dvh",
         top: "auto",
         bottom: 0,
         right: 0,
         borderLeft: "none",
         borderTop: "1px solid var(--gold-line)",
         transform: isOpen ? "translateY(0)" : "translateY(100%)",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
       }
     : {
         ...s.panel,
         transform: isOpen ? "translateX(0)" : "translateX(100%)",
+        paddingTop: "env(safe-area-inset-top, 0px)",
       };
 
   return (
