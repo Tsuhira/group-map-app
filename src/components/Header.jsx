@@ -79,6 +79,9 @@ const s = {
     backdropFilter: "blur(8px)",
     zIndex: 10,
     minHeight: 48,
+    paddingTop: "env(safe-area-inset-top, 0px)",
+    paddingLeft: "env(safe-area-inset-left, 0px)",
+    paddingRight: "env(safe-area-inset-right, 0px)",
   },
   title: {
     fontSize: "15px",
