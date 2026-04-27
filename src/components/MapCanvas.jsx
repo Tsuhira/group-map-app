@@ -160,7 +160,8 @@ export default function MapCanvas({
         if (d.data.userId) return 2;
         return 1.5;
       })
-      .attr("filter", d => d.id === selectedNodeId ? "url(#glow)" : null);
+      .attr("filter", d => d.id === selectedNodeId ? "url(#glow)" : null)
+      .attr("stroke-dasharray", d => d.data.status === "プロスペクト" ? "6 4" : null);
   }, [selectedNodeId, highlightIds, currentUserUid]);
 
   // Main effect: SVG setup + force simulation
@@ -245,7 +246,8 @@ export default function MapCanvas({
       .attr("stroke-width", 1.5)
       .attr("stroke-dasharray", d => {
         const id = typeof d.target === "object" ? d.target.id : d.target;
-        return nodeById.get(id)?.data.active ? null : "5 4";
+        const tgt = nodeById.get(id);
+        return tgt?.data.status === "プロスペクト" ? "6 4" : null;
       });
 
     // Render node groups
@@ -294,6 +296,7 @@ export default function MapCanvas({
         return 1.5;
       })
       .attr("filter", d => d.id === curSelectedId ? "url(#glow)" : null)
+      .attr("stroke-dasharray", d => d.data.status === "プロスペクト" ? "6 4" : null)
       .attr("opacity", d => d.data.active ? 1 : 0.5);
 
     nodeG.filter(d => d.data.active)
