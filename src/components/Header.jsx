@@ -11,7 +11,7 @@ export default function Header({ labelMode, onLabelModeToggle, onFitScreen }) {
         <button style={s.btn} onClick={onLabelModeToggle} title="ラベル表示切替">
           {labelMode === "name" ? <Tag size={16} /> : <Tags size={16} />}
           <span style={s.btnLabel}>
-            {labelMode === "name" ? "名前のみ" : "名前+ランク"}
+            {labelMode === "name" ? "名前のみ" : "名前+ピン"}
           </span>
         </button>
       </div>
