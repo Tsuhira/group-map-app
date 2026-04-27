@@ -13,7 +13,7 @@ function newDraft(parentId) {
   };
 }
 
-export default function Sidebar({ node, addingForId, nodes, rootNodeId, onClose, onUpdate, onAdd, onDelete, onAddChild, onSetRoot }) {
+export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, onClose, onUpdate, onAdd, onDelete, onAddChild, onSetRoot }) {
   const { isMobile } = useBreakpoint();
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState(null);
@@ -151,6 +151,15 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, onClose,
             <dd style={s.dd}>{node.joinDate || "—"}</dd>
           </dl>
           {node.note && <p style={s.note}>{node.note}</p>}
+          {user && (
+            node.userId === user.uid
+              ? <div style={s.myNodeBadge}>あなたのノード</div>
+              : !node.userId && (
+                <button style={s.claimBtn} onClick={() => onUpdate({ ...node, userId: user.uid })}>
+                  このノードは自分
+                </button>
+              )
+          )}
           <div style={s.actions}>
             <button style={s.actBtn} onClick={startEdit}>編集</button>
             <button style={s.actBtn} onClick={() => onAddChild(node.id)}>＋ 子ノードを追加</button>
@@ -318,6 +327,29 @@ const s = {
     color: "#6ee7b7",
     fontSize: 13,
     cursor: "pointer",
+  },
+  myNodeBadge: {
+    display: "inline-flex",
+    alignItems: "center",
+    padding: "4px 10px",
+    borderRadius: 20,
+    background: "rgba(110,231,183,0.10)",
+    border: "1px solid rgba(110,231,183,0.35)",
+    color: "#6ee7b7",
+    fontSize: 11,
+    marginBottom: 12,
+  },
+  claimBtn: {
+    width: "100%",
+    padding: "7px 12px",
+    marginBottom: 12,
+    background: "rgba(110,231,183,0.06)",
+    border: "1px solid rgba(110,231,183,0.25)",
+    borderRadius: 8,
+    color: "#6ee7b7",
+    fontSize: 12,
+    cursor: "pointer",
+    textAlign: "left",
   },
   canBtn: {
     flex: 1,

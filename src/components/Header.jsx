@@ -1,4 +1,4 @@
-import { Maximize2, Tag, Tags, Search, SlidersHorizontal, Download, Upload } from "lucide-react";
+import { Maximize2, Tag, Tags, Search, SlidersHorizontal, Download, Upload, UserCircle2 } from "lucide-react";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 
 export default function Header({
@@ -6,6 +6,7 @@ export default function Header({
   searchQuery, onSearchChange, searchCount, searchIndex, onSearchNav,
   filterActive, onFilterToggle,
   onExport, onImport,
+  mode, userNodeId, onGoToMyNode,
 }) {
   const { isMobile, isTablet } = useBreakpoint();
 
@@ -34,6 +35,12 @@ export default function Header({
 
       {/* コントロール */}
       <div style={s.controls}>
+        {mode === "firestore" && (
+          <span style={s.modeBadge} title="くまさん王国と同期中">🐻</span>
+        )}
+        {userNodeId && (
+          <IconBtn icon={<UserCircle2 size={15} />} onClick={onGoToMyNode} title="自分のノードへ" />
+        )}
         {filterActive !== "all" && (
           <span style={s.badge}>{isMobile ? "●" : "フィルター適用中"}</span>
         )}
@@ -132,6 +139,11 @@ const s = {
     alignItems: "center",
     gap: "4px",
     flexShrink: 0,
+  },
+  modeBadge: {
+    fontSize: "14px",
+    lineHeight: 1,
+    padding: "0 2px",
   },
   badge: {
     fontSize: "10px",

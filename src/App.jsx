@@ -5,7 +5,8 @@ import Breadcrumb from "./components/Breadcrumb";
 import Sidebar from "./components/Sidebar";
 import ContextMenu from "./components/ContextMenu";
 import FilterPanel from "./components/FilterPanel";
-import { sampleNodes } from "./data/sampleNodes";
+import { useAuth } from "./hooks/useAuth";
+import { useNodes } from "./hooks/useNodes";
 
 function exportNodes(nodes) {
   const json = JSON.stringify({ version: 1, nodes }, null, 2);
@@ -27,12 +28,10 @@ function validateImport(parsed) {
 }
 
 export default function App() {
-  const [nodes, setNodes] = useState(sampleNodes);
-  const [rootNodeId, setRootNodeId] = useState(() => {
-    const stored = localStorage.getItem("rootNodeId");
-    const dataRootId = sampleNodes.find(n => !n.parentId)?.id ?? null;
-    return sampleNodes.some(n => n.id === stored) ? stored : dataRootId;
-  });
+  const { user, loading: authLoading } = useAuth();
+  const { nodes, mode, addNode, updateNode, deleteNode, replaceAll } = useNodes(user, authLoading);
+
+  const [rootNodeId, setRootNodeId] = useState(localStorage.getItem("rootNodeId") || null);
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [labelMode, setLabelMode] = useState("name");
   const [addingForId, setAddingForId] = useState(null);
@@ -45,13 +44,27 @@ export default function App() {
   const headerRef = useRef(null);
   const importInputRef = useRef(null);
 
-  const selectedNode = nodes.find(n => n.id === selectedNodeId) ?? null;
-  const contextNode = contextMenu ? nodes.find(n => n.id === contextMenu.nodeId) : null;
-  const contextHasChildren = contextNode ? nodes.some(n => n.parentId === contextNode.id) : false;
+  // rootNodeId を nodes に合わせてバリデーション
+  useEffect(() => {
+    if (!nodes || nodes.length === 0) return;
+    if (!rootNodeId || !nodes.some(n => n.id === rootNodeId)) {
+      const dataRoot = nodes.find(n => !n.parentId);
+      setRootNodeId(dataRoot?.id ?? null);
+    }
+  }, [nodes]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const selectedNode = nodes?.find(n => n.id === selectedNodeId) ?? null;
+  const contextNode = contextMenu ? nodes?.find(n => n.id === contextMenu.nodeId) : null;
+  const contextHasChildren = contextNode ? nodes?.some(n => n.parentId === contextNode.id) : false;
+
+  // ログインユーザーに紐付いたノード
+  const userNodeId = user && nodes
+    ? (nodes.find(n => n.userId === user.uid)?.id ?? null)
+    : null;
 
   const searchMatchIds = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return [];
+    if (!q || !nodes) return [];
     return nodes.filter(n => n.name.toLowerCase().includes(q)).map(n => n.id);
   }, [nodes, searchQuery]);
 
@@ -77,24 +90,25 @@ export default function App() {
     setSelectedNodeId(null);
   }, []);
 
-  const handleAddNode = useCallback((nodeData) => {
-    setNodes(prev => [...prev, nodeData]);
+  const handleAddNode = useCallback(async (nodeData) => {
+    await addNode(nodeData);
     setAddingForId(null);
     setSelectedNodeId(nodeData.parentId);
-  }, []);
+  }, [addNode]);
 
-  const handleUpdateNode = useCallback((nodeData) => {
-    setNodes(prev => prev.map(n => n.id === nodeData.id ? nodeData : n));
-  }, []);
+  const handleUpdateNode = useCallback(async (nodeData) => {
+    await updateNode(nodeData);
+  }, [updateNode]);
 
-  const handleDeleteNode = useCallback((nodeId) => {
-    const target = nodes.find(n => n.id === nodeId);
-    setNodes(prev => prev.filter(n => n.id !== nodeId));
+  const handleDeleteNode = useCallback(async (nodeId) => {
+    const target = nodes?.find(n => n.id === nodeId);
+    await deleteNode(nodeId);
     setSelectedNodeId(target?.parentId ?? null);
     if (nodeId === rootNodeId) {
-      setRootNodeId(nodes.find(n => !n.parentId && n.id !== nodeId)?.id ?? null);
+      const dataRoot = nodes?.find(n => !n.parentId && n.id !== nodeId);
+      setRootNodeId(dataRoot?.id ?? null);
     }
-  }, [nodes, rootNodeId]);
+  }, [nodes, rootNodeId, deleteNode]);
 
   const handleAddChild = useCallback((parentId) => {
     setAddingForId(parentId);
@@ -112,21 +126,21 @@ export default function App() {
 
   const handleFitScreen = useCallback(() => fitRef.current?.(), []);
 
-  const handleExport = useCallback(() => exportNodes(nodes), [nodes]);
+  const handleExport = useCallback(() => nodes && exportNodes(nodes), [nodes]);
 
   const handleImport = useCallback((e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
         const parsed = JSON.parse(ev.target.result);
         const err = validateImport(parsed);
         if (err) { alert(`インポートエラー: ${err}`); return; }
         const newNodes = parsed.nodes;
         const dataRoot = newNodes.find(n => !n.parentId);
-        setNodes(newNodes);
+        await replaceAll(newNodes);
         setRootNodeId(dataRoot?.id ?? null);
         localStorage.setItem("rootNodeId", dataRoot?.id ?? "");
         setSelectedNodeId(null);
@@ -136,7 +150,15 @@ export default function App() {
       }
     };
     reader.readAsText(file);
-  }, []);
+  }, [replaceAll]);
+
+  if (authLoading || nodes === null) {
+    return (
+      <div style={s.loading}>
+        <span style={s.loadingText}>読み込み中…</span>
+      </div>
+    );
+  }
 
   return (
     <div style={s.app}>
@@ -161,6 +183,9 @@ export default function App() {
           onFilterToggle={() => setShowFilter(v => !v)}
           onExport={handleExport}
           onImport={() => importInputRef.current?.click()}
+          mode={mode}
+          userNodeId={userNodeId}
+          onGoToMyNode={() => userNodeId && handleSetRoot(userNodeId)}
         />
         {showFilter && (
           <FilterPanel
@@ -189,6 +214,7 @@ export default function App() {
           addingForId={addingForId}
           nodes={nodes}
           rootNodeId={rootNodeId}
+          user={user}
           onClose={handleSidebarClose}
           onUpdate={handleUpdateNode}
           onAdd={handleAddNode}
@@ -238,5 +264,17 @@ const s = {
     flex: 1,
     position: "relative",
     overflow: "hidden",
+  },
+  loading: {
+    width: "100%",
+    height: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "var(--bg)",
+  },
+  loadingText: {
+    color: "var(--gold-dim)",
+    fontSize: 14,
   },
 };
