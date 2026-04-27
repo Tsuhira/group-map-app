@@ -15,7 +15,7 @@ function newDraft(parentId) {
   };
 }
 
-export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, onClose, onUpdate, onAdd, onDelete, onAddChild, onSetRoot }) {
+export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, userNodeId, onClose, onUpdate, onAdd, onDelete, onAddChild, onSetRoot }) {
   const { isMobile } = useBreakpoint();
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState(null);
@@ -157,8 +157,13 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, on
           {node.note && <p style={s.note}>{node.note}</p>}
           {user?.uid && (
             node.userId === user.uid
-              ? <div style={s.myNodeBadge}>あなたのノード</div>
-              : !node.userId && (
+              ? <div style={s.myNodeSection}>
+                  <div style={s.myNodeBadge}>あなたのノード</div>
+                  <button style={s.unclaimBtn} onClick={() => onUpdate({ ...node, userId: null })}>
+                    紐付けを解除
+                  </button>
+                </div>
+              : !node.userId && !userNodeId && (
                 <button style={s.claimBtn} onClick={() => onUpdate({ ...node, userId: user.uid })}>
                   このノードは自分
                 </button>
@@ -332,6 +337,12 @@ const s = {
     fontSize: 13,
     cursor: "pointer",
   },
+  myNodeSection: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
   myNodeBadge: {
     display: "inline-flex",
     alignItems: "center",
@@ -341,7 +352,15 @@ const s = {
     border: "1px solid rgba(110,231,183,0.35)",
     color: "#6ee7b7",
     fontSize: 11,
-    marginBottom: 12,
+  },
+  unclaimBtn: {
+    padding: "4px 10px",
+    background: "rgba(248,113,113,0.06)",
+    border: "1px solid rgba(248,113,113,0.25)",
+    borderRadius: 20,
+    color: "#f87171",
+    fontSize: 11,
+    cursor: "pointer",
   },
   claimBtn: {
     width: "100%",

@@ -233,6 +233,7 @@ export default function App() {
           nodes={nodes}
           rootNodeId={rootNodeId}
           user={user}
+          userNodeId={userNodeId}
           onClose={handleSidebarClose}
           onUpdate={handleUpdateNode}
           onAdd={handleAddNode}
