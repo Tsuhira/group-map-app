@@ -3,6 +3,8 @@ import { useBreakpoint } from "../hooks/useBreakpoint";
 
 export const ROOT_SENTINEL = "__root__";
 
+const STATUS_OPTIONS = ["", "ABO", "PC", "プロスペクト"];
+
 function newDraft(parentId) {
   return {
     id: crypto.randomUUID(),
@@ -10,6 +12,7 @@ function newDraft(parentId) {
     parentId: parentId === ROOT_SENTINEL ? null : parentId,
     pinLevel: "",
     active: true,
+    status: "",
     joinDate: new Date().toISOString().split("T")[0],
     note: "",
   };
@@ -111,6 +114,14 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, us
           <Field label="親ノード">
             <div style={s.readOnly}>{parentNode?.name ?? "（なし・ルートノード）"}</div>
           </Field>
+          <Field label="ステータス">
+            <select style={s.input} value={form.status || ""}
+              onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
+              {STATUS_OPTIONS.map(v => (
+                <option key={v} value={v}>{v || "未設定"}</option>
+              ))}
+            </select>
+          </Field>
           <Field label="ピンレベル">
             <input style={s.input} value={form.pinLevel}
               onChange={e => setForm(f => ({ ...f, pinLevel: e.target.value }))}
@@ -145,6 +156,12 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, us
             <dd style={{ ...s.dd, color: node.active ? "#6ee7b7" : "var(--gold-dim)" }}>
               {node.active ? "アクティブ" : "非アクティブ"}
             </dd>
+            {node.status && (
+              <>
+                <dt style={s.dt}>ステータス</dt>
+                <dd style={s.dd}>{node.status}</dd>
+              </>
+            )}
             {parentNode && (
               <>
                 <dt style={s.dt}>親ノード</dt>

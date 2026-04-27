@@ -39,6 +39,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchIndex, setSearchIndex] = useState(0);
   const [filterActive, setFilterActive] = useState("all");
+  const [filterStatuses, setFilterStatuses] = useState(new Set());
   const [showFilter, setShowFilter] = useState(false);
   const fitRef = useRef(null);
   const headerRef = useRef(null);
@@ -200,7 +201,13 @@ export default function App() {
           <FilterPanel
             filterActive={filterActive}
             onFilterActiveChange={setFilterActive}
-            onReset={() => setFilterActive("all")}
+            filterStatuses={filterStatuses}
+            onFilterStatusesChange={status => setFilterStatuses(prev => {
+              const next = new Set(prev);
+              if (next.has(status)) next.delete(status); else next.add(status);
+              return next;
+            })}
+            onReset={() => { setFilterActive("all"); setFilterStatuses(new Set()); }}
             onClose={() => setShowFilter(false)}
           />
         )}
@@ -222,6 +229,7 @@ export default function App() {
           highlightIds={highlightIds}
           focusNodeId={focusNodeId}
           filterActive={filterActive}
+          filterStatuses={filterStatuses}
           onSelectNode={setSelectedNodeId}
           onContextMenu={handleContextMenu}
           fitRef={fitRef}

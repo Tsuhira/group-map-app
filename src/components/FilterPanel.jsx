@@ -6,7 +6,13 @@ const ACTIVE_OPTIONS = [
   { value: "inactive", label: "非アクティブのみ" },
 ];
 
-export default function FilterPanel({ filterActive, onFilterActiveChange, onReset, onClose }) {
+const STATUS_OPTIONS = ["ABO", "PC", "プロスペクト"];
+
+export default function FilterPanel({
+  filterActive, onFilterActiveChange,
+  filterStatuses, onFilterStatusesChange,
+  onReset, onClose,
+}) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -36,6 +42,23 @@ export default function FilterPanel({ filterActive, onFilterActiveChange, onRese
             <span>{label}</span>
           </label>
         ))}
+      </div>
+      <div style={{ ...s.section, borderTop: "1px solid var(--gold-line)" }}>
+        <div style={s.label}>ステータス</div>
+        {STATUS_OPTIONS.map(status => (
+          <label key={status} style={s.check}>
+            <input
+              type="checkbox"
+              checked={filterStatuses.has(status)}
+              onChange={() => onFilterStatusesChange(status)}
+              style={{ accentColor: "var(--gold)" }}
+            />
+            <span>{status}</span>
+          </label>
+        ))}
+        {filterStatuses.size === 0 && (
+          <div style={s.hint}>未選択 = すべて表示</div>
+        )}
       </div>
       <button style={s.resetBtn} onClick={onReset}>フィルターをリセット</button>
     </div>
@@ -93,6 +116,21 @@ const s = {
     color: "var(--gold)",
     cursor: "pointer",
     padding: "4px 0",
+  },
+  check: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    fontSize: "13px",
+    color: "var(--gold)",
+    cursor: "pointer",
+    padding: "4px 0",
+  },
+  hint: {
+    fontSize: "11px",
+    color: "var(--gold-dim)",
+    marginTop: "4px",
+    fontStyle: "italic",
   },
   resetBtn: {
     display: "block",

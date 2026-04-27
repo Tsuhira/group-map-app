@@ -75,7 +75,7 @@ function forceEdgeClear(simLinks, nodeRxFn, nodeRyFn, gap) {
 
 export default function MapCanvas({
   nodes, rootNodeId, selectedNodeId, labelMode,
-  highlightIds, focusNodeId, filterActive,
+  highlightIds, focusNodeId, filterActive, filterStatuses,
   onSelectNode, onContextMenu, fitRef,
   currentUserUid,
 }) {
@@ -95,8 +95,9 @@ export default function MapCanvas({
     const startId = rootNodeId ?? nodes.find(n => !n.parentId)?.id;
     const visible = (n) => {
       if (!n || n.id === startId) return true;
-      if (filterActive === "active") return n.active;
-      if (filterActive === "inactive") return !n.active;
+      if (filterActive === "active" && !n.active) return false;
+      if (filterActive === "inactive" && n.active) return false;
+      if (filterStatuses?.size > 0 && !filterStatuses.has(n.status || "")) return false;
       return true;
     };
     nodes.forEach(n => {
@@ -108,7 +109,7 @@ export default function MapCanvas({
       if (parent) parent.children.push(map[n.id]);
     });
     return startId ? map[startId] : null;
-  }, [nodes, rootNodeId, filterActive]);
+  }, [nodes, rootNodeId, filterActive, filterStatuses]);
 
   const fitToScreen = useCallback((svg, g, width, height) => {
     const bounds = g.node().getBBox();
@@ -356,7 +357,7 @@ export default function MapCanvas({
     setTimeout(() => fitToScreen(svg, g, width, height), 80);
 
     return () => { simulation.stop(); };
-  }, [nodes, rootNodeId, filterActive, labelMode, buildHierarchy, fitToScreen,
+  }, [nodes, rootNodeId, filterActive, filterStatuses, labelMode, buildHierarchy, fitToScreen,
       onSelectNode, onContextMenu, fitRef, currentUserUid]);
 
   return (
