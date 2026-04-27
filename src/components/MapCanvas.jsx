@@ -1,10 +1,14 @@
 import { useRef, useEffect, useCallback } from "react";
 import * as d3 from "d3";
 
-const LEVEL_RADIUS = 180;
 const NODE_RX = 70;
 const NODE_RY = 28;
 const NODE_RY_2LINE = 36;
+const MIN_GAP = 20; // 輪郭間の最小隙間(px)
+
+// 放射方向が水平になる位置（円の左右端）でも重ならないための最低値
+// = 2×rx + MIN_GAP = 160px
+const LEVEL_RADIUS = NODE_RX * 2 + MIN_GAP;
 
 function radialPoint(angle, r) {
   return [r * Math.cos(angle - Math.PI / 2), r * Math.sin(angle - Math.PI / 2)];
@@ -32,7 +36,6 @@ export default function MapCanvas({
 
     nodes.forEach(n => {
       if (!visible(n) || !n.parentId) return;
-      // 省略表示: フィルターで非表示の親を飛ばして最近傍の可視祖先にぶら下げる
       let parent = map[n.parentId];
       while (parent && !visible(parent)) {
         parent = parent.parentId ? map[parent.parentId] : null;
@@ -60,17 +63,14 @@ export default function MapCanvas({
     );
   }, []);
 
-  // focusNodeId が変わったら該当ノードを画面中央に移動
   useEffect(() => {
     if (!focusNodeId || !zoomRef.current || !svgRef.current) return;
     const pos = nodePositionsRef.current[focusNodeId];
     if (!pos) return;
     const svgEl = svgRef.current;
-    const width = svgEl.clientWidth;
-    const height = svgEl.clientHeight;
     d3.select(svgEl).transition().duration(400).call(
       zoomRef.current.transform,
-      d3.zoomIdentity.translate(width / 2 - pos.x, height / 2 - pos.y)
+      d3.zoomIdentity.translate(svgEl.clientWidth / 2 - pos.x, svgEl.clientHeight / 2 - pos.y)
     );
   }, [focusNodeId]);
 
@@ -83,7 +83,6 @@ export default function MapCanvas({
     svg.selectAll("*").remove();
 
     const defs = svg.append("defs");
-
     const glowFilter = defs.append("filter")
       .attr("id", "glow")
       .attr("x", "-40%").attr("y", "-40%")
@@ -92,12 +91,6 @@ export default function MapCanvas({
     const feMerge = glowFilter.append("feMerge");
     feMerge.append("feMergeNode").attr("in", "blur");
     feMerge.append("feMergeNode").attr("in", "SourceGraphic");
-
-    defs.append("filter")
-      .attr("id", "grayscale")
-      .append("feColorMatrix")
-      .attr("type", "saturate")
-      .attr("values", "0.15");
 
     const zoom = d3.zoom()
       .scaleExtent([0.1, 4])
@@ -113,14 +106,18 @@ export default function MapCanvas({
 
     const root = d3.hierarchy(data, d => d.children?.length ? d.children : null);
     const maxDepth = root.height || 1;
-    const radius = maxDepth * LEVEL_RADIUS;
 
+    // separation: 弧長 = angle × r = (2×rx + gap) となるよう逆算
+    // LEVEL_RADIUS = 2×rx + gap なので factor/depth に整理できる
     d3.tree()
-      .size([2 * Math.PI, radius])
-      .separation((a, b) => (a.parent === b.parent ? 1 : 2) / a.depth)
+      .size([2 * Math.PI, maxDepth * LEVEL_RADIUS])
+      .separation((a, b) => {
+        const factor = a.parent === b.parent ? 1 : 1.3;
+        return factor / a.depth;
+      })
       (root);
 
-    // ノード位置を保存（focusNodeId アニメーション用）
+    // ノード位置を保存
     nodePositionsRef.current = {};
     root.descendants().forEach(d => {
       const [x, y] = radialPoint(d.x, d.y);
@@ -129,6 +126,8 @@ export default function MapCanvas({
 
     const show2Line = d => labelMode === "name+rank" && !!d.data.pinLevel;
     const nodeRy = d => show2Line(d) ? NODE_RY_2LINE : NODE_RY;
+    // 非アクティブは円: rx=ry=NODE_RY
+    const nodeRx = d => d.data.active ? NODE_RX : NODE_RY;
 
     // 接続線
     g.append("g").attr("class", "links")
@@ -179,10 +178,9 @@ export default function MapCanvas({
 
     nodeG.transition().duration(300).style("opacity", 1);
 
-    // 楕円
     nodeG.append("ellipse")
-      .attr("rx", NODE_RX)
-      .attr("ry", nodeRy)
+      .attr("rx", nodeRx)
+      .attr("ry", d => d.data.active ? nodeRy(d) : NODE_RY)
       .attr("fill", d => d.data.active ? "#1e4470" : "#1a2a3a")
       .attr("stroke", d => {
         if (highlightIds?.has(d.data.id)) return "#fbbf24";
@@ -194,24 +192,19 @@ export default function MapCanvas({
         if (d.data.id === selectedNodeId) return 2;
         return 1.5;
       })
-      .attr("filter", d => {
-        if (d.data.id === selectedNodeId) return "url(#glow)";
-        if (!d.data.active) return "url(#grayscale)";
-        return null;
-      })
-      .attr("opacity", d => d.data.active ? 1 : 0.45);
+      .attr("filter", d => d.data.id === selectedNodeId ? "url(#glow)" : null)
+      .attr("opacity", d => d.data.active ? 1 : 0.5);
 
-    // ノード名
-    nodeG.append("text")
+    nodeG.filter(d => d.data.active)
+      .append("text")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "middle")
       .attr("dy", d => show2Line(d) ? "-0.55em" : "0")
-      .attr("fill", d => d.data.active ? "var(--gold)" : "var(--gold-dim)")
+      .attr("fill", "var(--gold)")
       .attr("font-size", "12px")
       .attr("pointer-events", "none")
       .text(d => d.data.name);
 
-    // ピンレベル（2行目）
     nodeG.filter(d => show2Line(d))
       .append("text")
       .attr("text-anchor", "middle")
@@ -222,11 +215,12 @@ export default function MapCanvas({
       .attr("pointer-events", "none")
       .text(d => d.data.pinLevel);
 
-    // 規定ノードの📌アイコン
+    // 📌 アイコン（ノードの実際のサイズに合わせて配置）
     nodeG.filter(d => d.data.id === rootNodeId)
       .append("text")
-      .attr("x", -NODE_RX + 2)
-      .attr("y", d => -nodeRy(d) + 2)
+      .attr("x", d => -nodeRx(d) + 2)
+      .attr("y", d => -(d.data.active ? nodeRy(d) : NODE_RY) + 2)
+
       .attr("dominant-baseline", "hanging")
       .attr("font-size", "11px")
       .attr("pointer-events", "none")

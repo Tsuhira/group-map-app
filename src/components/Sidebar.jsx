@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useBreakpoint } from "../hooks/useBreakpoint";
 
 function newDraft(parentId) {
   return {
@@ -13,6 +14,7 @@ function newDraft(parentId) {
 }
 
 export default function Sidebar({ node, addingForId, nodes, rootNodeId, onClose, onUpdate, onAdd, onDelete, onAddChild, onSetRoot }) {
+  const { isMobile } = useBreakpoint();
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState(null);
   const [error, setError] = useState("");
@@ -74,8 +76,25 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, onClose,
     onDelete(node.id);
   };
 
+  const panelStyle = isMobile
+    ? {
+        ...s.panel,
+        width: "100%",
+        height: "70vh",
+        top: "auto",
+        bottom: 0,
+        right: 0,
+        borderLeft: "none",
+        borderTop: "1px solid var(--gold-line)",
+        transform: isOpen ? "translateY(0)" : "translateY(100%)",
+      }
+    : {
+        ...s.panel,
+        transform: isOpen ? "translateX(0)" : "translateX(100%)",
+      };
+
   return (
-    <aside style={{ ...s.panel, transform: isOpen ? "translateX(0)" : "translateX(100%)" }}>
+    <aside style={panelStyle}>
       <button style={s.closeBtn} onClick={onClose}>✕</button>
 
       {showForm ? (
