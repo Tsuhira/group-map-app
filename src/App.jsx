@@ -1,9 +1,10 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import Header from "./components/Header";
 import MapCanvas from "./components/MapCanvas";
 import Breadcrumb from "./components/Breadcrumb";
 import Sidebar from "./components/Sidebar";
 import ContextMenu from "./components/ContextMenu";
+import FilterPanel from "./components/FilterPanel";
 import { sampleNodes } from "./data/sampleNodes";
 
 export default function App() {
@@ -16,12 +17,45 @@ export default function App() {
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [labelMode, setLabelMode] = useState("name");
   const [addingForId, setAddingForId] = useState(null);
-  const [contextMenu, setContextMenu] = useState(null); // { nodeId, x, y }
+  const [contextMenu, setContextMenu] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchIndex, setSearchIndex] = useState(0);
+  const [filterActive, setFilterActive] = useState("all");
+  const [showFilter, setShowFilter] = useState(false);
   const fitRef = useRef(null);
+  const headerRef = useRef(null);
 
   const selectedNode = nodes.find(n => n.id === selectedNodeId) ?? null;
   const contextNode = contextMenu ? nodes.find(n => n.id === contextMenu.nodeId) : null;
   const contextHasChildren = contextNode ? nodes.some(n => n.parentId === contextNode.id) : false;
+
+  const searchMatchIds = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return nodes.filter(n => n.name.toLowerCase().includes(q)).map(n => n.id);
+  }, [nodes, searchQuery]);
+
+  const focusNodeId = searchMatchIds.length > 0
+    ? searchMatchIds[((searchIndex % searchMatchIds.length) + searchMatchIds.length) % searchMatchIds.length]
+    : null;
+
+  const highlightIds = useMemo(() => new Set(searchMatchIds), [searchMatchIds]);
+
+  useEffect(() => { setSearchIndex(0); }, [searchQuery]);
+
+  const handleSearchNav = useCallback((dir) => {
+    setSearchIndex(i => {
+      const len = searchMatchIds.length;
+      if (!len) return 0;
+      return ((i + dir) % len + len) % len;
+    });
+  }, [searchMatchIds.length]);
+
+  const handleSetRoot = useCallback((id) => {
+    setRootNodeId(id);
+    localStorage.setItem("rootNodeId", id);
+    setSelectedNodeId(null);
+  }, []);
 
   const handleAddNode = useCallback((nodeData) => {
     setNodes(prev => [...prev, nodeData]);
@@ -47,12 +81,6 @@ export default function App() {
     setSelectedNodeId(null);
   }, []);
 
-  const handleSetRoot = useCallback((id) => {
-    setRootNodeId(id);
-    localStorage.setItem("rootNodeId", id);
-    setSelectedNodeId(null);
-  }, []);
-
   const handleSidebarClose = useCallback(() => {
     setSelectedNodeId(null);
     setAddingForId(null);
@@ -66,17 +94,37 @@ export default function App() {
 
   return (
     <div style={s.app}>
-      <Header
-        labelMode={labelMode}
-        onLabelModeToggle={() => setLabelMode(m => m === "name" ? "name+rank" : "name")}
-        onFitScreen={handleFitScreen}
-      />
+      <div ref={headerRef} style={s.headerWrap}>
+        <Header
+          labelMode={labelMode}
+          onLabelModeToggle={() => setLabelMode(m => m === "name" ? "name+rank" : "name")}
+          onFitScreen={handleFitScreen}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchCount={searchMatchIds.length}
+          searchIndex={searchIndex}
+          onSearchNav={handleSearchNav}
+          filterActive={filterActive}
+          onFilterToggle={() => setShowFilter(v => !v)}
+        />
+        {showFilter && (
+          <FilterPanel
+            filterActive={filterActive}
+            onFilterActiveChange={setFilterActive}
+            onReset={() => setFilterActive("all")}
+            onClose={() => setShowFilter(false)}
+          />
+        )}
+      </div>
       <div style={s.main}>
         <MapCanvas
           nodes={nodes}
           rootNodeId={rootNodeId}
           selectedNodeId={selectedNodeId}
           labelMode={labelMode}
+          highlightIds={highlightIds}
+          focusNodeId={focusNodeId}
+          filterActive={filterActive}
           onSelectNode={setSelectedNodeId}
           onContextMenu={handleContextMenu}
           fitRef={fitRef}
@@ -125,6 +173,11 @@ const s = {
     flexDirection: "column",
     width: "100%",
     height: "100%",
+  },
+  headerWrap: {
+    position: "relative",
+    flexShrink: 0,
+    zIndex: 10,
   },
   main: {
     flex: 1,
