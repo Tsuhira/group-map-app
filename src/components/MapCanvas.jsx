@@ -1,16 +1,16 @@
 import { useRef, useEffect, useCallback } from "react";
 import * as d3 from "d3";
 
-const LEVEL_RADIUS = 180; // 階層ごとの半径間隔
-const NODE_RX = 60;
-const NODE_RY = 22;
+const LEVEL_RADIUS = 180;
+const NODE_RX = 70;
+const NODE_RY = 28;
+const NODE_RY_2LINE = 36;
 
-// 極座標 → 直交座標
 function radialPoint(angle, r) {
   return [r * Math.cos(angle - Math.PI / 2), r * Math.sin(angle - Math.PI / 2)];
 }
 
-export default function MapCanvas({ nodes, rootNodeId, selectedNodeId, layoutDir: _unused, onSelectNode, fitRef }) {
+export default function MapCanvas({ nodes, rootNodeId, selectedNodeId, labelMode, onSelectNode, fitRef }) {
   const svgRef = useRef(null);
   const zoomRef = useRef(null);
 
@@ -48,6 +48,25 @@ export default function MapCanvas({ nodes, rootNodeId, selectedNodeId, layoutDir
 
     svg.selectAll("*").remove();
 
+    const defs = svg.append("defs");
+
+    // 選択状態のグロー
+    const glowFilter = defs.append("filter")
+      .attr("id", "glow")
+      .attr("x", "-40%").attr("y", "-40%")
+      .attr("width", "180%").attr("height", "180%");
+    glowFilter.append("feGaussianBlur").attr("stdDeviation", "4").attr("result", "blur");
+    const feMerge = glowFilter.append("feMerge");
+    feMerge.append("feMergeNode").attr("in", "blur");
+    feMerge.append("feMergeNode").attr("in", "SourceGraphic");
+
+    // 非アクティブのグレースケール
+    defs.append("filter")
+      .attr("id", "grayscale")
+      .append("feColorMatrix")
+      .attr("type", "saturate")
+      .attr("values", "0.15");
+
     const zoom = d3.zoom()
       .scaleExtent([0.1, 4])
       .on("zoom", e => g.attr("transform", e.transform));
@@ -69,7 +88,10 @@ export default function MapCanvas({ nodes, rootNodeId, selectedNodeId, layoutDir
       .separation((a, b) => (a.parent === b.parent ? 1 : 2) / a.depth)
       (root);
 
-    // ── 接続線（直線）────────────────────────────────
+    const show2Line = d => labelMode === "name+rank" && !!d.data.pinLevel;
+    const nodeRy = d => show2Line(d) ? NODE_RY_2LINE : NODE_RY;
+
+    // 接続線
     g.append("g").attr("class", "links")
       .selectAll("line")
       .data(root.links())
@@ -79,13 +101,13 @@ export default function MapCanvas({ nodes, rootNodeId, selectedNodeId, layoutDir
       .attr("x2", d => radialPoint(d.target.x, d.target.y)[0])
       .attr("y2", d => radialPoint(d.target.x, d.target.y)[1])
       .attr("stroke", d => d.target.data.active
-        ? "rgba(232,213,176,0.3)"
-        : "rgba(232,213,176,0.12)"
+        ? "rgba(255,255,255,0.25)"
+        : "rgba(255,255,255,0.08)"
       )
       .attr("stroke-width", 1.5)
       .attr("stroke-dasharray", d => d.target.data.active ? null : "5 4");
 
-    // ── ノード ────────────────────────────────────────
+    // ノードグループ
     const nodeG = g.append("g").attr("class", "nodes")
       .selectAll("g")
       .data(root.descendants())
@@ -95,42 +117,76 @@ export default function MapCanvas({ nodes, rootNodeId, selectedNodeId, layoutDir
         return `translate(${x},${y})`;
       })
       .attr("cursor", "pointer")
+      .style("opacity", 0)
       .on("click", (event, d) => {
         event.stopPropagation();
         onSelectNode(d.data.id);
+      })
+      .on("mouseenter", function () {
+        d3.select(this).select("ellipse")
+          .transition().duration(120)
+          .attr("transform", "scale(1.05)");
+      })
+      .on("mouseleave", function () {
+        d3.select(this).select("ellipse")
+          .transition().duration(120)
+          .attr("transform", "scale(1)");
       });
+
+    // フェードイン
+    nodeG.transition().duration(300).style("opacity", 1);
 
     // 楕円
     nodeG.append("ellipse")
       .attr("rx", NODE_RX)
-      .attr("ry", NODE_RY)
+      .attr("ry", nodeRy)
       .attr("fill", d => d.data.active ? "#1e4470" : "#1a2a3a")
-      .attr("stroke", d => d.data.id === selectedNodeId
-        ? "#e8d5b0"
-        : "rgba(232,213,176,0.35)"
-      )
-      .attr("stroke-width", d => d.data.id === selectedNodeId ? 2.5 : 1.5)
-      .attr("opacity", d => d.data.active ? 1 : 0.5);
+      .attr("stroke", d => d.data.id === selectedNodeId ? "#ffffff" : "rgba(232,213,176,0.35)")
+      .attr("stroke-width", d => d.data.id === selectedNodeId ? 2 : 1.5)
+      .attr("filter", d => {
+        if (d.data.id === selectedNodeId) return "url(#glow)";
+        if (!d.data.active) return "url(#grayscale)";
+        return null;
+      })
+      .attr("opacity", d => d.data.active ? 1 : 0.45);
 
-    // ラベル
+    // ノード名
     nodeG.append("text")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "middle")
-      .attr("fill", "var(--gold)")
+      .attr("dy", d => show2Line(d) ? "-0.55em" : "0")
+      .attr("fill", d => d.data.active ? "var(--gold)" : "var(--gold-dim)")
       .attr("font-size", "12px")
       .attr("pointer-events", "none")
       .text(d => d.data.name);
 
-    // 空白クリックで選択解除
+    // ピンレベル（2行目）
+    nodeG.filter(d => show2Line(d))
+      .append("text")
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "middle")
+      .attr("dy", "0.85em")
+      .attr("fill", "var(--gold-dim)")
+      .attr("font-size", "10px")
+      .attr("pointer-events", "none")
+      .text(d => d.data.pinLevel);
+
+    // 規定ノードの📌アイコン
+    nodeG.filter(d => d.data.id === rootNodeId)
+      .append("text")
+      .attr("x", -NODE_RX + 2)
+      .attr("y", d => -nodeRy(d) + 2)
+      .attr("dominant-baseline", "hanging")
+      .attr("font-size", "11px")
+      .attr("pointer-events", "none")
+      .text("📌");
+
     svg.on("click", () => onSelectNode(null));
 
-    // 初回フィット（中心を画面中央に）
-    const initTx = width / 2;
-    const initTy = height / 2;
-    svg.call(zoom.transform, d3.zoomIdentity.translate(initTx, initTy));
+    svg.call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2));
     setTimeout(() => fitToScreen(svg, g, width, height), 50);
 
-  }, [nodes, rootNodeId, selectedNodeId, buildHierarchy, fitToScreen, onSelectNode, fitRef]);
+  }, [nodes, rootNodeId, selectedNodeId, labelMode, buildHierarchy, fitToScreen, onSelectNode, fitRef]);
 
   return (
     <svg
