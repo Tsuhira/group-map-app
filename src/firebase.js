@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { initializeAuth, browserLocalPersistence } from "firebase/auth";
+import { initializeAuth, inMemoryPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -12,8 +12,9 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-// initializeAuth でリダイレクト resolver を省き sessionStorage 依存を排除
+// SSO トークンはセッション毎に kuma-app から発行されるためメモリのみに保持
+// browserLocalPersistence だと cross-origin セッション検証で sessionStorage エラーが発生する
 export const auth = initializeAuth(app, {
-  persistence: browserLocalPersistence,
+  persistence: inMemoryPersistence,
 });
 export const db = getFirestore(app);
