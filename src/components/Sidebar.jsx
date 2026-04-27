@@ -13,7 +13,7 @@ function newDraft(parentId) {
     pinLevel: "",
     active: true,
     status: "プロスペクト",
-    joinDate: new Date().toISOString().split("T")[0],
+    birthday: "",
     note: "",
   };
 }
@@ -51,7 +51,7 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, us
 
   const validate = (f) => {
     if (!f.name.trim()) return "名前は必須です";
-    if (f.joinDate && new Date(f.joinDate) > new Date()) return "入会日は今日以前の日付を入力してください";
+    if (f.birthday && new Date(f.birthday) > new Date()) return "誕生日は今日以前の日付を入力してください";
     return "";
   };
 
@@ -134,9 +134,9 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, us
               {form.active ? "有効" : "無効"}
             </button>
           </Field>
-          <Field label="入会日">
-            <input style={s.input} type="date" value={form.joinDate}
-              onChange={e => setForm(f => ({ ...f, joinDate: e.target.value }))} />
+          <Field label="誕生日">
+            <input style={s.input} type="date" value={form.birthday || ""}
+              onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))} />
           </Field>
           <Field label="備考">
             <textarea style={s.textarea} value={form.note} rows={3}
@@ -168,8 +168,8 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, us
                 <dd style={s.dd}>{parentNode.name}</dd>
               </>
             )}
-            <dt style={s.dt}>入会日</dt>
-            <dd style={s.dd}>{node.joinDate || "—"}</dd>
+            <dt style={s.dt}>誕生日</dt>
+            <dd style={s.dd}>{node.birthday || "—"}</dd>
           </dl>
           {node.note && <p style={s.note}>{node.note}</p>}
           {user?.uid && (
