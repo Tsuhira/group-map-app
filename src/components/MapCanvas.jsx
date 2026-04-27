@@ -10,7 +10,7 @@ function radialPoint(angle, r) {
   return [r * Math.cos(angle - Math.PI / 2), r * Math.sin(angle - Math.PI / 2)];
 }
 
-export default function MapCanvas({ nodes, rootNodeId, selectedNodeId, labelMode, onSelectNode, fitRef }) {
+export default function MapCanvas({ nodes, rootNodeId, selectedNodeId, labelMode, onSelectNode, onContextMenu, fitRef }) {
   const svgRef = useRef(null);
   const zoomRef = useRef(null);
 
@@ -122,6 +122,11 @@ export default function MapCanvas({ nodes, rootNodeId, selectedNodeId, labelMode
         event.stopPropagation();
         onSelectNode(d.data.id);
       })
+      .on("contextmenu", (event, d) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onContextMenu?.(d.data.id, event.clientX, event.clientY);
+      })
       .on("mouseenter", function () {
         d3.select(this).select("ellipse")
           .transition().duration(120)
@@ -181,12 +186,13 @@ export default function MapCanvas({ nodes, rootNodeId, selectedNodeId, labelMode
       .attr("pointer-events", "none")
       .text("📌");
 
-    svg.on("click", () => onSelectNode(null));
+    svg.on("click", () => onSelectNode(null))
+       .on("contextmenu", e => e.preventDefault());
 
     svg.call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2));
     setTimeout(() => fitToScreen(svg, g, width, height), 50);
 
-  }, [nodes, rootNodeId, selectedNodeId, labelMode, buildHierarchy, fitToScreen, onSelectNode, fitRef]);
+  }, [nodes, rootNodeId, selectedNodeId, labelMode, buildHierarchy, fitToScreen, onSelectNode, onContextMenu, fitRef]);
 
   return (
     <svg
