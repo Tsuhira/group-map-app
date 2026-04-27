@@ -29,4 +29,8 @@ html, body, #root {
 }
 
 button { font-family: inherit; cursor: pointer; }
-input, textarea, select { font-family: inherit; }
+/* font-size: 16px 未満だと iOS Safari がフォーカス時に自動ズームする */
+input, textarea, select {
+  font-family: inherit;
+  font-size: 16px;
+}
