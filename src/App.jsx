@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import Header from "./components/Header";
 import MapCanvas from "./components/MapCanvas";
 import Breadcrumb from "./components/Breadcrumb";
-import Sidebar from "./components/Sidebar";
+import Sidebar, { ROOT_SENTINEL } from "./components/Sidebar";
 import ContextMenu from "./components/ContextMenu";
 import FilterPanel from "./components/FilterPanel";
 import { useAuth } from "./hooks/useAuth";
@@ -197,6 +197,14 @@ export default function App() {
         )}
       </div>
       <div style={s.main}>
+        {nodes.length === 0 && !addingForId && (
+          <div style={s.emptyState}>
+            <p style={s.emptyText}>ノードがありません</p>
+            <button style={s.emptyBtn} onClick={() => setAddingForId(ROOT_SENTINEL)}>
+              ＋ 最初のノードを作成
+            </button>
+          </div>
+        )}
         <MapCanvas
           nodes={nodes}
           rootNodeId={rootNodeId}
@@ -264,6 +272,32 @@ const s = {
     flex: 1,
     position: "relative",
     overflow: "hidden",
+  },
+  emptyState: {
+    position: "absolute",
+    inset: 0,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 16,
+    pointerEvents: "none",
+    zIndex: 5,
+  },
+  emptyText: {
+    color: "var(--gold-dim)",
+    fontSize: 14,
+    margin: 0,
+  },
+  emptyBtn: {
+    pointerEvents: "auto",
+    padding: "10px 20px",
+    background: "rgba(110,231,183,0.10)",
+    border: "1px solid rgba(110,231,183,0.4)",
+    borderRadius: 10,
+    color: "#6ee7b7",
+    fontSize: 14,
+    cursor: "pointer",
   },
   loading: {
     width: "100%",
