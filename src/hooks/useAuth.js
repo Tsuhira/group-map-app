@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
-import { auth } from "../firebase";
-import { signInWithCustomToken, onAuthStateChanged } from "firebase/auth";
 
+const API_KEY = "AIzaSyCnz26wUZ-78tDbkmnOiu2HSxxnwrFpztA";
+
+// Firebase Auth SDK を使わず REST API でカスタムトークンを ID トークンに交換する
+// → sessionStorage 依存を完全に排除
 export function useAuth() {
   const [user, setUser] = useState(undefined); // undefined = loading
 
@@ -9,16 +11,36 @@ export function useAuth() {
     const params = new URLSearchParams(window.location.search);
     const kumaToken = params.get("kumaToken");
 
-    if (kumaToken) {
-      signInWithCustomToken(auth, kumaToken).catch(err =>
-        console.error("kuma SSO sign-in failed:", err)
-      );
-      const url = new URL(window.location.href);
-      url.searchParams.delete("kumaToken");
-      window.history.replaceState({}, "", url.toString());
+    if (!kumaToken) {
+      setUser(null);
+      return;
     }
 
-    return onAuthStateChanged(auth, u => setUser(u ?? null));
+    const url = new URL(window.location.href);
+    url.searchParams.delete("kumaToken");
+    window.history.replaceState({}, "", url.toString());
+
+    fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: kumaToken, returnSecureToken: true }),
+      }
+    )
+      .then(res => res.json())
+      .then(data => {
+        if (data.idToken) {
+          setUser({ uid: data.localId, idToken: data.idToken });
+        } else {
+          console.error("Token exchange failed:", data.error?.message);
+          setUser(null);
+        }
+      })
+      .catch(err => {
+        console.error("Auth REST failed:", err);
+        setUser(null);
+      });
   }, []);
 
   return { user, loading: user === undefined };
