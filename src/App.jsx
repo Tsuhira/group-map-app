@@ -73,11 +73,25 @@ export default function App() {
     return nodes.filter(n => n.name.toLowerCase().includes(q)).map(n => n.id);
   }, [nodes, searchQuery]);
 
+  const birthYearMatchIds = useMemo(() => {
+    if (filterBirthYear == null || !nodes) return [];
+    return nodes.filter(n => {
+      if (!n.birthYear || !n.birthDate) return false;
+      const year = parseInt(n.birthYear);
+      const month = parseInt(n.birthDate.slice(0, 2));
+      const sy = month >= 4 ? year : year - 1;
+      return sy === filterBirthYear;
+    }).map(n => n.id);
+  }, [nodes, filterBirthYear]);
+
   const focusNodeId = searchMatchIds.length > 0
     ? searchMatchIds[((searchIndex % searchMatchIds.length) + searchMatchIds.length) % searchMatchIds.length]
     : null;
 
-  const highlightIds = useMemo(() => new Set(searchMatchIds), [searchMatchIds]);
+  const highlightIds = useMemo(
+    () => new Set([...searchMatchIds, ...birthYearMatchIds]),
+    [searchMatchIds, birthYearMatchIds]
+  );
 
   useEffect(() => { setSearchIndex(0); }, [searchQuery]);
 
@@ -189,7 +203,6 @@ export default function App() {
           searchIndex={searchIndex}
           onSearchNav={handleSearchNav}
           filterActive={filterActive}
-          filterBirthYear={filterBirthYear}
           onFilterToggle={() => setShowFilter(v => !v)}
           onExport={handleExport}
           onImport={() => importInputRef.current?.click()}
@@ -234,7 +247,6 @@ export default function App() {
           focusNodeId={focusNodeId}
           filterActive={filterActive}
           filterStatuses={filterStatuses}
-          filterBirthYear={filterBirthYear}
           onSelectNode={setSelectedNodeId}
           onContextMenu={handleContextMenu}
           fitRef={fitRef}
