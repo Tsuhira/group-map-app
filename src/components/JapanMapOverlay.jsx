@@ -115,7 +115,7 @@ const LABEL_ZOOM = 1.8; // この倍率以上でラベル表示
 function statusColor(status) {
   if (status === "ABO") return COL.abo;
   if (status === "PC") return COL.pc;
-  if (status === "Prospect") return COL.prospect;
+  if (status === "プロスペクト") return COL.prospect;
   return COL.empty;
 }
 
@@ -125,7 +125,7 @@ export default function JapanMapOverlay({ nodes, onClose }) {
   const { prefStatus, prefNodes } = useMemo(() => {
     const status = {};
     const byPref = {};
-    const priority = { ABO: 3, PC: 2, Prospect: 1 };
+    const priority = { ABO: 3, PC: 2, プロスペクト: 1 };
     (nodes || []).forEach(n => {
       if (!n.hometown) return;
       const p = n.hometown;
@@ -354,7 +354,7 @@ export default function JapanMapOverlay({ nodes, onClose }) {
         )}
 
         <div style={styles.legend}>
-          {[["ABO", COL.abo], ["PC", COL.pc], ["見込", COL.prospect]].map(([label, color]) => (
+          {[["ABO", COL.abo], ["PC", COL.pc], ["プロスペクト", COL.prospect]].map(([label, color]) => (
             <span key={label} style={styles.legendItem}>
               <span style={{ ...styles.legendDot, background: color }} />
               {label}
