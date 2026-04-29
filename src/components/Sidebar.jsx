@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { getAnimalName } from "../lib/animalFortune";
+import { PREFECTURES } from "../lib/prefectures";
 
 export const ROOT_SENTINEL = "__root__";
 
@@ -42,6 +43,7 @@ function newDraft(parentId) {
     status: "プロスペクト",
     birthYear: "",
     birthDate: "",
+    hometown: "",
     note: "",
   };
 }
@@ -229,6 +231,13 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, us
               )}
             </div>
           </Field>
+          <Field label="出身地">
+            <select style={s.input} value={form.hometown || ""}
+              onChange={e => setForm(f => ({ ...f, hometown: e.target.value }))}>
+              <option value="">未設定</option>
+              {PREFECTURES.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </Field>
           <Field label="備考">
             <textarea style={s.textarea} value={form.note} rows={3}
               onChange={e => setForm(f => ({ ...f, note: e.target.value }))} />
@@ -271,6 +280,12 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, us
               <>
                 <dt style={s.dt}>動物占い</dt>
                 <dd style={{ ...s.dd, color: "#fbbf24" }}>🐾 {animalName}</dd>
+              </>
+            )}
+            {node.hometown && (
+              <>
+                <dt style={s.dt}>出身地</dt>
+                <dd style={s.dd}>{node.hometown}</dd>
               </>
             )}
           </dl>

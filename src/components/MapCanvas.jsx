@@ -77,7 +77,7 @@ export default function MapCanvas({
   nodes, rootNodeId, selectedNodeId, labelMode,
   highlightIds, focusNodeId, filterActive, filterStatuses,
   onSelectNode, onContextMenu, fitRef,
-  currentUserUid,
+  currentUserUid, onOpenJapanMap,
 }) {
   const svgRef = useRef(null);
   const zoomRef = useRef(null);
@@ -374,6 +374,34 @@ export default function MapCanvas({
       onSelectNode, onContextMenu, fitRef, currentUserUid]);
 
   return (
-    <svg ref={svgRef} style={{ width: "100%", height: "100%", display: "block" }} />
+    <>
+      <svg ref={svgRef} style={{ width: "100%", height: "100%", display: "block" }} />
+      {onOpenJapanMap && (
+        <button
+          onClick={onOpenJapanMap}
+          title="出身地マップ"
+          style={{
+            position: "absolute",
+            bottom: 16,
+            right: 16,
+            width: 44,
+            height: 44,
+            borderRadius: "50%",
+            background: "rgba(13,31,53,0.92)",
+            border: "1px solid var(--gold-line)",
+            color: "var(--gold-dim)",
+            fontSize: 20,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backdropFilter: "blur(6px)",
+            zIndex: 5,
+          }}
+        >
+          🗾
+        </button>
+      )}
+    </>
   );
 }
