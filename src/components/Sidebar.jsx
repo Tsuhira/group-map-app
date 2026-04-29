@@ -1,19 +1,47 @@
 import { useState, useEffect } from "react";
 import { useBreakpoint } from "../hooks/useBreakpoint";
+import { getAnimalName } from "../lib/animalFortune";
 
 export const ROOT_SENTINEL = "__root__";
 
 const STATUS_OPTIONS = ["", "ABO", "PC", "プロスペクト"];
+const GENDER_OPTIONS = ["男性", "女性", "その他"];
+
+const BIRTH_YEAR_OPTIONS = (() => {
+  const years = [];
+  for (let y = 2015; y >= 1950; y--) years.push(y);
+  return years;
+})();
+
+const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1);
+
+function daysInMonth(month) {
+  // Use a non-leap year for day count; Feb gets 28/29 but we show 29 as max for simplicity
+  return new Date(2000, month, 0).getDate();
+}
+
+function formatBirthday(birthYear, birthDate) {
+  if (!birthYear && !birthDate) return "—";
+  if (birthYear && birthDate) {
+    const [mm, dd] = birthDate.split("-").map(Number);
+    return `${birthYear}年${mm}月${dd}日`;
+  }
+  if (birthYear) return `${birthYear}年`;
+  const [mm, dd] = birthDate.split("-").map(Number);
+  return `${mm}月${dd}日`;
+}
 
 function newDraft(parentId) {
   return {
     id: crypto.randomUUID(),
     name: "",
     parentId: parentId === ROOT_SENTINEL ? null : parentId,
+    gender: "",
     pinLevel: "",
     active: true,
     status: "プロスペクト",
-    birthday: "",
+    birthYear: "",
+    birthDate: "",
     note: "",
   };
 }
@@ -51,7 +79,12 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, us
 
   const validate = (f) => {
     if (!f.name.trim()) return "名前は必須です";
-    if (f.birthday && new Date(f.birthday) > new Date()) return "誕生日は今日以前の日付を入力してください";
+    if (!f.gender) return "性別は必須です";
+    if (f.birthYear && f.birthDate) {
+      const [mm, dd] = f.birthDate.split("-").map(Number);
+      const d = new Date(parseInt(f.birthYear), mm - 1, dd);
+      if (d > new Date()) return "誕生日は今日以前の日付を入力してください";
+    }
     return "";
   };
 
@@ -78,6 +111,29 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, us
     if (!window.confirm(`「${node.name}」を削除しますか？`)) return;
     onDelete(node.id);
   };
+
+  const formMonth = form?.birthDate ? parseInt(form.birthDate.split("-")[0]) : "";
+  const formDay = form?.birthDate ? parseInt(form.birthDate.split("-")[1]) : "";
+
+  const handleMonthChange = (month) => {
+    if (!month) {
+      setForm(f => ({ ...f, birthDate: "" }));
+    } else {
+      const currentDay = form?.birthDate ? parseInt(form.birthDate.split("-")[1]) : 1;
+      const maxDay = daysInMonth(parseInt(month));
+      const day = Math.min(currentDay || 1, maxDay);
+      setForm(f => ({ ...f, birthDate: `${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}` }));
+    }
+  };
+
+  const handleDayChange = (day) => {
+    if (!day || !formMonth) return;
+    setForm(f => ({ ...f, birthDate: `${String(formMonth).padStart(2, "0")}-${String(day).padStart(2, "0")}` }));
+  };
+
+  const animalName = node?.birthYear && node?.birthDate
+    ? getAnimalName(`${node.birthYear}-${node.birthDate}`)
+    : null;
 
   const panelStyle = isMobile
     ? {
@@ -111,6 +167,17 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, us
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               placeholder="名前" />
           </Field>
+          <Field label="性別 *">
+            <div style={{ display: "flex", gap: 6 }}>
+              {GENDER_OPTIONS.map(g => (
+                <button key={g}
+                  style={{ ...s.genderBtn, ...(form.gender === g ? s.genderBtnOn : {}) }}
+                  onClick={() => setForm(f => ({ ...f, gender: g }))}>
+                  {g}
+                </button>
+              ))}
+            </div>
+          </Field>
           <Field label="親ノード">
             <div style={s.readOnly}>{parentNode?.name ?? "（なし・ルートノード）"}</div>
           </Field>
@@ -134,9 +201,33 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, us
               {form.active ? "有効" : "無効"}
             </button>
           </Field>
-          <Field label="誕生日">
-            <input style={s.input} type="date" value={form.birthday || ""}
-              onChange={e => setForm(f => ({ ...f, birthday: e.target.value }))} />
+          <Field label="誕生年">
+            <select style={s.input} value={form.birthYear || ""}
+              onChange={e => setForm(f => ({ ...f, birthYear: e.target.value }))}>
+              <option value="">未設定</option>
+              {BIRTH_YEAR_OPTIONS.map(y => (
+                <option key={y} value={String(y)}>{y}年</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="誕生月日">
+            <div style={{ display: "flex", gap: 6 }}>
+              <select style={{ ...s.input, flex: 1 }} value={formMonth || ""}
+                onChange={e => handleMonthChange(e.target.value ? parseInt(e.target.value) : "")}>
+                <option value="">未設定</option>
+                {MONTH_OPTIONS.map(m => <option key={m} value={m}>{m}月</option>)}
+              </select>
+              {formMonth ? (
+                <select style={{ ...s.input, flex: 1 }} value={formDay || ""}
+                  onChange={e => handleDayChange(e.target.value ? parseInt(e.target.value) : "")}>
+                  {Array.from({ length: daysInMonth(formMonth) }, (_, i) => i + 1).map(d => (
+                    <option key={d} value={d}>{d}日</option>
+                  ))}
+                </select>
+              ) : (
+                <div style={{ ...s.readOnly, flex: 1 }}>—</div>
+              )}
+            </div>
           </Field>
           <Field label="備考">
             <textarea style={s.textarea} value={form.note} rows={3}
@@ -156,6 +247,12 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, us
             <dd style={{ ...s.dd, color: node.active ? "#6ee7b7" : "var(--gold-dim)" }}>
               {node.active ? "アクティブ" : "非アクティブ"}
             </dd>
+            {node.gender && (
+              <>
+                <dt style={s.dt}>性別</dt>
+                <dd style={{ ...s.dd, color: genderColor(node.gender) }}>{node.gender}</dd>
+              </>
+            )}
             {node.status && (
               <>
                 <dt style={s.dt}>ステータス</dt>
@@ -169,7 +266,13 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, us
               </>
             )}
             <dt style={s.dt}>誕生日</dt>
-            <dd style={s.dd}>{node.birthday || "—"}</dd>
+            <dd style={s.dd}>{formatBirthday(node.birthYear, node.birthDate)}</dd>
+            {animalName && (
+              <>
+                <dt style={s.dt}>動物占い</dt>
+                <dd style={{ ...s.dd, color: "#fbbf24" }}>🐾 {animalName}</dd>
+              </>
+            )}
           </dl>
           {node.note && <p style={s.note}>{node.note}</p>}
           {user?.uid && (
@@ -204,6 +307,12 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, us
       ) : null}
     </aside>
   );
+}
+
+function genderColor(gender) {
+  if (gender === "男性") return "#93c5fd";
+  if (gender === "女性") return "#fda4af";
+  return "var(--gold)";
 }
 
 function Field({ label, children }) {
@@ -342,6 +451,22 @@ const s = {
   toggleOff: {
     background: "rgba(232,213,176,0.04)",
     color: "var(--gold-dim)",
+  },
+  genderBtn: {
+    flex: 1,
+    padding: "6px 4px",
+    background: "rgba(232,213,176,0.04)",
+    border: "1px solid var(--gold-line)",
+    borderRadius: 6,
+    color: "var(--gold-dim)",
+    fontSize: 12,
+    cursor: "pointer",
+    transition: "all 0.15s",
+  },
+  genderBtnOn: {
+    background: "rgba(232,213,176,0.14)",
+    border: "1px solid rgba(232,213,176,0.5)",
+    color: "var(--gold)",
   },
   btnRow: { display: "flex", gap: 8, marginTop: 8 },
   savBtn: {

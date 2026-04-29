@@ -73,9 +73,16 @@ function forceEdgeClear(simLinks, nodeRxFn, nodeRyFn, gap) {
   return force;
 }
 
+function getSchoolYear(birthYear, birthDate) {
+  if (!birthYear || !birthDate) return null;
+  const year = parseInt(birthYear);
+  const month = parseInt(birthDate.slice(0, 2));
+  return month >= 4 ? year : year - 1;
+}
+
 export default function MapCanvas({
   nodes, rootNodeId, selectedNodeId, labelMode,
-  highlightIds, focusNodeId, filterActive, filterStatuses,
+  highlightIds, focusNodeId, filterActive, filterStatuses, filterBirthYear,
   onSelectNode, onContextMenu, fitRef,
   currentUserUid,
 }) {
@@ -98,6 +105,10 @@ export default function MapCanvas({
       if (filterActive === "active" && !n.active) return false;
       if (filterActive === "inactive" && n.active) return false;
       if (filterStatuses?.size > 0 && !filterStatuses.has(n.status || "")) return false;
+      if (filterBirthYear != null) {
+        const sy = getSchoolYear(n.birthYear, n.birthDate);
+        if (sy !== null && sy !== filterBirthYear) return false;
+      }
       return true;
     };
     nodes.forEach(n => {
@@ -109,7 +120,7 @@ export default function MapCanvas({
       if (parent) parent.children.push(map[n.id]);
     });
     return startId ? map[startId] : null;
-  }, [nodes, rootNodeId, filterActive, filterStatuses]);
+  }, [nodes, rootNodeId, filterActive, filterStatuses, filterBirthYear]);
 
   const fitToScreen = useCallback((svg, g) => {
     const svgEl = svg.node();
@@ -301,7 +312,11 @@ export default function MapCanvas({
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "middle")
       .attr("dy", d => show2Line(d) ? "-0.55em" : "0")
-      .attr("fill", "var(--gold)")
+      .attr("fill", d => {
+        if (d.data.gender === "男性") return "#93c5fd";
+        if (d.data.gender === "女性") return "#fda4af";
+        return "var(--gold)";
+      })
       .attr("font-size", d => show2Line(d) ? "12px" : "18px")
       .attr("pointer-events", "none")
       .text(d => d.data.name);
@@ -360,7 +375,7 @@ export default function MapCanvas({
     ro.observe(svgEl);
 
     return () => { simulation.stop(); ro.disconnect(); };
-  }, [nodes, rootNodeId, filterActive, filterStatuses, labelMode, buildHierarchy, fitToScreen,
+  }, [nodes, rootNodeId, filterActive, filterStatuses, filterBirthYear, labelMode, buildHierarchy, fitToScreen,
       onSelectNode, onContextMenu, fitRef, currentUserUid]);
 
   return (

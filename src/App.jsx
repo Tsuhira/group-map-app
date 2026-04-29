@@ -40,6 +40,7 @@ export default function App() {
   const [searchIndex, setSearchIndex] = useState(0);
   const [filterActive, setFilterActive] = useState("active");
   const [filterStatuses, setFilterStatuses] = useState(new Set(["ABO", "PC"]));
+  const [filterBirthYear, setFilterBirthYear] = useState(null);
   const [showFilter, setShowFilter] = useState(false);
   const fitRef = useRef(null);
   const headerRef = useRef(null);
@@ -188,6 +189,7 @@ export default function App() {
           searchIndex={searchIndex}
           onSearchNav={handleSearchNav}
           filterActive={filterActive}
+          filterBirthYear={filterBirthYear}
           onFilterToggle={() => setShowFilter(v => !v)}
           onExport={handleExport}
           onImport={() => importInputRef.current?.click()}
@@ -207,7 +209,9 @@ export default function App() {
               if (next.has(status)) next.delete(status); else next.add(status);
               return next;
             })}
-            onReset={() => { setFilterActive("all"); setFilterStatuses(new Set()); }}
+            filterBirthYear={filterBirthYear}
+            onFilterBirthYearChange={setFilterBirthYear}
+            onReset={() => { setFilterActive("all"); setFilterStatuses(new Set()); setFilterBirthYear(null); }}
             onClose={() => setShowFilter(false)}
           />
         )}
@@ -230,6 +234,7 @@ export default function App() {
           focusNodeId={focusNodeId}
           filterActive={filterActive}
           filterStatuses={filterStatuses}
+          filterBirthYear={filterBirthYear}
           onSelectNode={setSelectedNodeId}
           onContextMenu={handleContextMenu}
           fitRef={fitRef}
