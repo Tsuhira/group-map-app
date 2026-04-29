@@ -8,9 +8,20 @@ const ACTIVE_OPTIONS = [
 
 const STATUS_OPTIONS = ["ABO", "PC", "プロスペクト"];
 
+const CURRENT_YEAR = 2026;
+const BIRTH_YEAR_OPTIONS = (() => {
+  const opts = [];
+  for (let y = 2015; y >= 1960; y--) {
+    const label = `${String(y).slice(-2)}(${CURRENT_YEAR - y}歳)`;
+    opts.push({ year: y, label });
+  }
+  return opts;
+})();
+
 export default function FilterPanel({
   filterActive, onFilterActiveChange,
   filterStatuses, onFilterStatusesChange,
+  filterBirthYear, onFilterBirthYearChange,
   onReset, onClose,
 }) {
   const ref = useRef(null);
@@ -59,6 +70,20 @@ export default function FilterPanel({
         {filterStatuses.size === 0 && (
           <div style={s.hint}>未選択 = すべて表示</div>
         )}
+      </div>
+      <div style={{ ...s.section, borderTop: "1px solid var(--gold-line)" }}>
+        <div style={s.label}>誕生年度</div>
+        <select
+          style={s.select}
+          value={filterBirthYear ?? ""}
+          onChange={e => onFilterBirthYearChange(e.target.value ? parseInt(e.target.value) : null)}
+        >
+          <option value="">指定なし</option>
+          {BIRTH_YEAR_OPTIONS.map(({ year, label }) => (
+            <option key={year} value={year}>{label}</option>
+          ))}
+        </select>
+        <div style={s.hint}>年度 = 4月〜翌3月</div>
       </div>
       <button style={s.resetBtn} onClick={onReset}>フィルターをリセット</button>
     </div>
@@ -125,6 +150,17 @@ const s = {
     color: "var(--gold)",
     cursor: "pointer",
     padding: "4px 0",
+  },
+  select: {
+    width: "100%",
+    padding: "7px 10px",
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid var(--gold-line)",
+    borderRadius: 6,
+    color: "var(--gold)",
+    fontSize: 13,
+    outline: "none",
+    boxSizing: "border-box",
   },
   hint: {
     fontSize: "11px",

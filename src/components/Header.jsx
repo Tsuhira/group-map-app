@@ -4,7 +4,7 @@ import { useBreakpoint } from "../hooks/useBreakpoint";
 export default function Header({
   labelMode, onLabelModeToggle, onFitScreen,
   searchQuery, onSearchChange, searchCount, searchIndex, onSearchNav,
-  filterActive, onFilterToggle,
+  filterActive, filterBirthYear, onFilterToggle,
   onExport, onImport,
   mode, userNodeId, onGoToMyNode,
   hasGlobalMap, onGoToGlobalMap,
@@ -47,7 +47,7 @@ export default function Header({
         {userNodeId && (
           <IconBtn icon={<UserCircle2 size={15} />} onClick={onGoToMyNode} title="自分のノードへ" />
         )}
-        {filterActive !== "all" && (
+        {(filterActive !== "all" || filterBirthYear != null) && (
           <span style={s.badge}>{isMobile ? "●" : "フィルター適用中"}</span>
         )}
         <IconBtn icon={<SlidersHorizontal size={15} />} label={isTablet ? null : "フィルター"} onClick={onFilterToggle} title="フィルター" />
