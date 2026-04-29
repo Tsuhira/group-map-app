@@ -4,7 +4,7 @@ import * as d3 from "d3";
 const NODE_RX = 70;
 const NODE_RY = 28;
 const NODE_RY_2LINE = 36;
-const MIN_GAP = 14;
+const MIN_GAP = 18;
 
 // Ellipse boundary radius in the direction (dx, dy)
 function ellipseR(dx, dy, rx, ry) {
@@ -46,7 +46,7 @@ function forceEllipseCollide(nodeRxFn, nodeRyFn, gap) {
 function forceEdgeClear(simLinks, nodeRxFn, nodeRyFn, gap) {
   let ns;
   function force(alpha) {
-    const str = alpha * 0.12;
+    const str = alpha * 0.4;
     for (const link of simLinks) {
       const src = link.source, tgt = link.target;
       if (typeof src !== "object" || typeof tgt !== "object") continue;
@@ -351,9 +351,9 @@ export default function MapCanvas({
     const simulation = d3.forceSimulation(simNodes)
       .force("link", d3.forceLink(simLinks)
         .id(d => d.id)
-        .distance(d => nodeRxFn(d.source) + nodeRxFn(d.target) + 20)
-        .strength(0.65))
-      .force("charge", d3.forceManyBody().strength(-450))
+        .distance(d => nodeRxFn(d.source) + nodeRxFn(d.target) + 40)
+        .strength(0.5))
+      .force("charge", d3.forceManyBody().strength(-800))
       .force("collide", forceEllipseCollide(nodeRxFn, nodeRyFn, MIN_GAP))
       .force("edgeClear", forceEdgeClear(simLinks, nodeRxFn, nodeRyFn, MIN_GAP))
       .force("x", d3.forceX(0).strength(0.04))
