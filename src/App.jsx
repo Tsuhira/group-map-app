@@ -7,6 +7,7 @@ import ContextMenu from "./components/ContextMenu";
 import FilterPanel from "./components/FilterPanel";
 import { useAuth } from "./hooks/useAuth";
 import { useNodes } from "./hooks/useNodes";
+import JapanMapOverlay from "./components/JapanMapOverlay";
 
 function exportNodes(nodes) {
   const json = JSON.stringify({ version: 1, nodes }, null, 2);
@@ -42,6 +43,7 @@ export default function App() {
   const [filterStatuses, setFilterStatuses] = useState(new Set(["ABO", "PC"]));
   const [filterBirthYear, setFilterBirthYear] = useState(null);
   const [showFilter, setShowFilter] = useState(false);
+  const [showJapanMap, setShowJapanMap] = useState(false);
   const fitRef = useRef(null);
   const headerRef = useRef(null);
   const importInputRef = useRef(null);
@@ -251,7 +253,11 @@ export default function App() {
           onContextMenu={handleContextMenu}
           fitRef={fitRef}
           currentUserUid={user?.uid}
+          onOpenJapanMap={() => setShowJapanMap(true)}
         />
+        {showJapanMap && (
+          <JapanMapOverlay nodes={nodes} onClose={() => setShowJapanMap(false)} />
+        )}
         <Sidebar
           node={selectedNode}
           addingForId={addingForId}
