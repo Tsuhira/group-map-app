@@ -240,7 +240,13 @@ export default function MapCanvas({
       .data(simLinks)
       .join("line")
       .attr("stroke", "rgba(255,255,255,0.25)")
-      .attr("stroke-width", 1.5)
+      .attr("stroke-width", d => {
+        const srcId = typeof d.source === "object" ? d.source.id : d.source;
+        const tgtId = typeof d.target === "object" ? d.target.id : d.target;
+        const src = nodeById.get(srcId);
+        const tgt = nodeById.get(tgtId);
+        return (src?.data.status === "ABO" || tgt?.data.status === "ABO") ? 3 : 1.5;
+      })
       .attr("stroke-dasharray", d => {
         const id = typeof d.target === "object" ? d.target.id : d.target;
         const tgt = nodeById.get(id);
