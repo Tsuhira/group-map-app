@@ -245,7 +245,7 @@ export default function MapCanvas({
         const tgtId = typeof d.target === "object" ? d.target.id : d.target;
         const src = nodeById.get(srcId);
         const tgt = nodeById.get(tgtId);
-        return (src?.data.status === "ABO" || tgt?.data.status === "ABO") ? 3 : 1.5;
+        return (src?.data.status === "ABO" && tgt?.data.status === "ABO") ? 3 : 1.5;
       })
       .attr("stroke-dasharray", d => {
         const id = typeof d.target === "object" ? d.target.id : d.target;
