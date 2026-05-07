@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-export default function ContextMenu({ x, y, node, hasChildren, onEdit, onAddChild, onSetRoot, onDelete, onClose }) {
+export default function ContextMenu({ x, y, node, hasChildren, onEdit, onAddChild, onSetRoot, onToggleAnchor, onDelete, onClose }) {
   useEffect(() => {
     const close = () => onClose();
     document.addEventListener("click", close);
@@ -17,6 +17,12 @@ export default function ContextMenu({ x, y, node, hasChildren, onEdit, onAddChil
     <div style={{ ...s.menu, left: x, top: y }} onClick={e => e.stopPropagation()}>
       <button style={s.item} onClick={wrap(onAddChild)}>＋ 子ノードを追加</button>
       <button style={s.item} onClick={wrap(onSetRoot)}>📌 規定ノードに設定</button>
+      {onToggleAnchor && (
+        <button style={{ ...s.item, color: node.anchor ? "#fbbf24" : "var(--gold)" }}
+          onClick={wrap(onToggleAnchor)}>
+          {node.anchor ? "⚓ アンカーを解除" : "⚓ アンカーに登録"}
+        </button>
+      )}
       <button style={s.item} onClick={wrap(onEdit)}>編集</button>
       <div style={s.divider} />
       <button

@@ -125,6 +125,12 @@ export default function App() {
     await updateNode(nodeData);
   }, [updateNode]);
 
+  const handleToggleAnchor = useCallback(async (nodeId) => {
+    const n = nodes?.find(x => x.id === nodeId);
+    if (!n) return;
+    await updateNode({ ...n, anchor: !n.anchor });
+  }, [nodes, updateNode]);
+
   const handleDeleteNode = useCallback(async (nodeId) => {
     const target = nodes?.find(n => n.id === nodeId);
     await deleteNode(nodeId);
@@ -287,6 +293,7 @@ export default function App() {
           onEdit={() => setSelectedNodeId(contextNode.id)}
           onAddChild={() => handleAddChild(contextNode.id)}
           onSetRoot={() => handleSetRoot(contextNode.id)}
+          onToggleAnchor={() => handleToggleAnchor(contextNode.id)}
           onDelete={() => {
             if (!window.confirm(`「${contextNode.name}」を削除しますか？`)) return;
             handleDeleteNode(contextNode.id);
