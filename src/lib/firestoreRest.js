@@ -1,7 +1,8 @@
 const PROJECT = "kuma-6c130";
 const DB_PATH = `projects/${PROJECT}/databases/(default)/documents`;
-const COL = "groupmap";
 const BASE = `https://firestore.googleapis.com/v1/${DB_PATH}`;
+const DEFAULT_COL = "groupmap";
+const MAPS_META_COL = "_maps";
 
 function toField(val) {
   if (val === null || val === undefined) return { nullValue: null };
@@ -28,16 +29,16 @@ function headers(idToken) {
   return { Authorization: `Bearer ${idToken}`, "Content-Type": "application/json" };
 }
 
-export async function listNodes(idToken) {
-  const res = await fetch(`${BASE}/${COL}`, { headers: headers(idToken) });
+export async function listNodes(idToken, col = DEFAULT_COL) {
+  const res = await fetch(`${BASE}/${col}`, { headers: headers(idToken) });
   if (!res.ok) throw new Error(`list failed: ${res.status}`);
   const data = await res.json();
   return (data.documents || []).map(fromDoc);
 }
 
-export async function setNode(node, idToken) {
+export async function setNode(node, idToken, col = DEFAULT_COL) {
   const mask = Object.keys(node).map(k => `updateMask.fieldPaths=${k}`).join("&");
-  const res = await fetch(`${BASE}/${COL}/${node.id}?${mask}`, {
+  const res = await fetch(`${BASE}/${col}/${node.id}?${mask}`, {
     method: "PATCH",
     headers: headers(idToken),
     body: JSON.stringify(toDoc(node)),
@@ -45,20 +46,20 @@ export async function setNode(node, idToken) {
   if (!res.ok) throw new Error(`set failed: ${res.status}`);
 }
 
-export async function deleteNode(nodeId, idToken) {
-  const res = await fetch(`${BASE}/${COL}/${nodeId}`, {
+export async function deleteNode(nodeId, idToken, col = DEFAULT_COL) {
+  const res = await fetch(`${BASE}/${col}/${nodeId}`, {
     method: "DELETE",
     headers: headers(idToken),
   });
   if (!res.ok) throw new Error(`delete failed: ${res.status}`);
 }
 
-export async function replaceAll(newNodes, idToken) {
-  const existing = await listNodes(idToken).catch(() => []);
+export async function replaceAll(newNodes, idToken, col = DEFAULT_COL) {
+  const existing = await listNodes(idToken, col).catch(() => []);
   const writes = [
-    ...existing.map(n => ({ delete: `${DB_PATH}/${COL}/${n.id}` })),
+    ...existing.map(n => ({ delete: `${DB_PATH}/${col}/${n.id}` })),
     ...newNodes.map(n => ({
-      update: { name: `${DB_PATH}/${COL}/${n.id}`, ...toDoc(n) },
+      update: { name: `${DB_PATH}/${col}/${n.id}`, ...toDoc(n) },
     })),
   ];
   if (writes.length === 0) return;
@@ -67,4 +68,37 @@ export async function replaceAll(newNodes, idToken) {
     { method: "POST", headers: headers(idToken), body: JSON.stringify({ writes }) }
   );
   if (!res.ok) throw new Error(`batchWrite failed: ${res.status}`);
+}
+
+export async function listMaps(idToken) {
+  const res = await fetch(`${BASE}/${MAPS_META_COL}`, { headers: headers(idToken) });
+  const userMaps = [];
+  if (res.ok) {
+    const data = await res.json();
+    for (const doc of data.documents || []) {
+      const fields = fromDoc(doc);
+      const id = doc.name.split("/").pop();
+      userMaps.push({ id, name: fields.name || id, createdAt: fields.createdAt || "" });
+    }
+    userMaps.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+  return [{ id: DEFAULT_COL, name: "グループマップ" }, ...userMaps];
+}
+
+export async function createMap(mapId, name, idToken) {
+  const mask = "updateMask.fieldPaths=name&updateMask.fieldPaths=createdAt";
+  const res = await fetch(`${BASE}/${MAPS_META_COL}/${mapId}?${mask}`, {
+    method: "PATCH",
+    headers: headers(idToken),
+    body: JSON.stringify(toDoc({ name, createdAt: new Date().toISOString() })),
+  });
+  if (!res.ok) throw new Error(`createMap failed: ${res.status}`);
+}
+
+export async function deleteMap(mapId, idToken) {
+  await replaceAll([], idToken, mapId);
+  await fetch(`${BASE}/${MAPS_META_COL}/${mapId}`, {
+    method: "DELETE",
+    headers: headers(idToken),
+  });
 }

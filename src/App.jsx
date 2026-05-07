@@ -8,6 +8,7 @@ import FilterPanel from "./components/FilterPanel";
 import { useAuth } from "./hooks/useAuth";
 import { useNodes } from "./hooks/useNodes";
 import JapanMapOverlay from "./components/JapanMapOverlay";
+import * as fs from "./lib/firestoreRest";
 
 function exportNodes(nodes) {
   const json = JSON.stringify({ version: 1, nodes }, null, 2);
@@ -30,7 +31,14 @@ function validateImport(parsed) {
 
 export default function App() {
   const { user, loading: authLoading } = useAuth();
-  const { nodes, mode, addNode, updateNode, deleteNode, replaceAll } = useNodes(user, authLoading);
+  const [currentMapId, setCurrentMapId] = useState("groupmap");
+  const [maps, setMaps] = useState([{ id: "groupmap", name: "グループマップ" }]);
+  const { nodes, mode, addNode, updateNode, deleteNode, replaceAll } = useNodes(user, authLoading, currentMapId);
+
+  useEffect(() => {
+    if (!user) return;
+    fs.listMaps(user.idToken).then(setMaps).catch(() => {});
+  }, [user]);
 
   const [rootNodeId, setRootNodeId] = useState(localStorage.getItem("rootNodeId") || null);
   const [selectedNodeId, setSelectedNodeId] = useState(null);
@@ -114,6 +122,22 @@ export default function App() {
   const handleGoToGlobalMap = useCallback(() => {
     if (trueRootId) handleSetRoot(trueRootId);
   }, [trueRootId, handleSetRoot]);
+
+  const handleSwitchMap = useCallback((mapId) => {
+    setCurrentMapId(mapId);
+    setRootNodeId(null);
+    localStorage.removeItem("rootNodeId");
+    setSelectedNodeId(null);
+    setAddingForId(null);
+  }, []);
+
+  const handleCreateMap = useCallback(async (name) => {
+    const mapId = `map_${Date.now()}`;
+    await fs.createMap(mapId, name.trim(), user.idToken);
+    const newMap = { id: mapId, name: name.trim() };
+    setMaps(prev => [...prev, newMap]);
+    handleSwitchMap(mapId);
+  }, [user, handleSwitchMap]);
 
   const handleAddNode = useCallback(async (nodeData) => {
     await addNode(nodeData);
@@ -219,6 +243,10 @@ export default function App() {
           onGoToMyNode={() => userNodeId && handleSetRoot(userNodeId)}
           hasGlobalMap={!!trueRootId}
           onGoToGlobalMap={handleGoToGlobalMap}
+          maps={maps}
+          currentMapId={currentMapId}
+          onSwitchMap={handleSwitchMap}
+          onCreateMap={handleCreateMap}
         />
         {showFilter && (
           <FilterPanel
