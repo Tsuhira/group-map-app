@@ -22,6 +22,7 @@ export default function FilterPanel({
   filterActive, onFilterActiveChange,
   filterStatuses, onFilterStatusesChange,
   filterBirthYear, onFilterBirthYearChange,
+  labelMode, onLabelModeToggle,
   onReset, onClose,
 }) {
   const ref = useRef(null);
@@ -84,6 +85,18 @@ export default function FilterPanel({
           ))}
         </select>
         <div style={s.hint}>年度 = 4月〜翌3月</div>
+      </div>
+      <div style={{ ...s.section, borderTop: "1px solid var(--gold-line)" }}>
+        <div style={s.label}>ラベル表示</div>
+        <label style={s.check}>
+          <input
+            type="checkbox"
+            checked={labelMode === "name+rank"}
+            onChange={onLabelModeToggle}
+            style={{ accentColor: "var(--gold)" }}
+          />
+          <span>ピンレベルを表示</span>
+        </label>
       </div>
       <button style={s.resetBtn} onClick={onReset}>フィルターをリセット</button>
     </div>

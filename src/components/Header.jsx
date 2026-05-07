@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { Maximize2, Tag, Tags, Search, SlidersHorizontal, Download, Upload, UserCircle2 } from "lucide-react";
+import { Search, SlidersHorizontal, Download, Upload, UserCircle2 } from "lucide-react";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 
 export default function Header({
-  labelMode, onLabelModeToggle, onFitScreen,
   searchQuery, onSearchChange, searchCount, searchIndex, onSearchNav,
-  filterActive, onFilterToggle,
+  isFilterActive, onFilterToggle,
   onExport, onImport,
   mode, userNodeId, onGoToMyNode,
   hasGlobalMap, onGoToGlobalMap,
@@ -80,16 +79,12 @@ export default function Header({
         {userNodeId && (
           <IconBtn icon={<UserCircle2 size={15} />} onClick={onGoToMyNode} title="自分のノードへ" />
         )}
-        {filterActive !== "all" && (
-          <span style={s.badge}>{isMobile ? "●" : "フィルター適用中"}</span>
-        )}
-        <IconBtn icon={<SlidersHorizontal size={15} />} label={isTablet ? null : "フィルター"} onClick={onFilterToggle} title="フィルター" />
-        <IconBtn icon={<Maximize2 size={15} />} onClick={onFitScreen} title="全体フィット" />
         <IconBtn
-          icon={labelMode === "name" ? <Tag size={15} /> : <Tags size={15} />}
-          label={isTablet ? null : (labelMode === "name" ? "名前のみ" : "名前+ピン")}
-          onClick={onLabelModeToggle}
-          title="ラベル表示切替"
+          icon={<SlidersHorizontal size={15} />}
+          label={isTablet ? null : "フィルター"}
+          onClick={onFilterToggle}
+          title="フィルター"
+          active={isFilterActive}
         />
         <IconBtn icon={<Download size={15} />} onClick={onExport} title="エクスポート" />
 
@@ -175,9 +170,17 @@ function UploadPopover({ maps, currentMapId, onLocalImport, onSwitchMap, onCreat
   );
 }
 
-function IconBtn({ icon, label, onClick, title }) {
+function IconBtn({ icon, label, onClick, title, active }) {
   return (
-    <button style={{ ...s.btn, padding: label ? "6px 10px" : "6px 8px" }} onClick={onClick} title={title}>
+    <button
+      style={{
+        ...s.btn,
+        padding: label ? "6px 10px" : "6px 8px",
+        ...(active ? s.btnActive : {}),
+      }}
+      onClick={onClick}
+      title={title}
+    >
       {icon}
       {label && <span style={s.btnLabel}>{label}</span>}
     </button>
@@ -265,6 +268,11 @@ const s = {
     border: "1px solid var(--gold-line)",
     borderRadius: "8px", color: "var(--gold-dim)",
     fontSize: "13px", cursor: "pointer", minHeight: 36,
+  },
+  btnActive: {
+    background: "rgba(251,191,36,0.12)",
+    border: "1px solid rgba(251,191,36,0.5)",
+    color: "#fbbf24",
   },
   btnLabel: { fontSize: "12px" },
 };
