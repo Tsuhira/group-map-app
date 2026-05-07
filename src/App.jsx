@@ -226,15 +226,12 @@ export default function App() {
       />
       <div ref={headerRef} style={s.headerWrap}>
         <Header
-          labelMode={labelMode}
-          onLabelModeToggle={() => setLabelMode(m => m === "name" ? "name+rank" : "name")}
-          onFitScreen={handleFitScreen}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           searchCount={searchMatchIds.length}
           searchIndex={searchIndex}
           onSearchNav={handleSearchNav}
-          filterActive={filterActive}
+          isFilterActive={filterActive !== "all" || filterBirthYear !== null}
           onFilterToggle={() => setShowFilter(v => !v)}
           onExport={handleExport}
           onImport={() => importInputRef.current?.click()}
@@ -260,6 +257,8 @@ export default function App() {
             })}
             filterBirthYear={filterBirthYear}
             onFilterBirthYearChange={setFilterBirthYear}
+            labelMode={labelMode}
+            onLabelModeToggle={() => setLabelMode(m => m === "name" ? "name+rank" : "name")}
             onReset={() => { setFilterActive("all"); setFilterStatuses(new Set()); setFilterBirthYear(null); }}
             onClose={() => setShowFilter(false)}
           />
