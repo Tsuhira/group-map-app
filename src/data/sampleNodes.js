@@ -1,6 +1,6 @@
 export const sampleNodes = [
-  { id: "1",  name: "山田 太郎",   parentId: null, pinLevel: "", active: true,  status: "ABO",      gender: "男性", birthYear: "1980", birthDate: "04-15", hometown: "東京都",   joinDate: "2018-04-01", note: "" },
-  { id: "2",  name: "鈴木 花子",   parentId: "1",  pinLevel: "", active: true,  status: "ABO",      gender: "女性", birthYear: "1985", birthDate: "07-20", hometown: "大阪府",   joinDate: "2019-06-15", note: "" },
+  { id: "1",  name: "山田 太郎",   parentId: null, pinLevel: "", active: true,  status: "ABO",      gender: "男性", birthYear: "1980", birthDate: "04-15", hometown: "東京都",   joinDate: "2018-04-01", note: "", shape: "DIA" },
+  { id: "2",  name: "鈴木 花子",   parentId: "1",  pinLevel: "", active: true,  status: "ABO",      gender: "女性", birthYear: "1985", birthDate: "07-20", hometown: "大阪府",   joinDate: "2019-06-15", note: "", shape: "EME" },
   { id: "3",  name: "田中 一郎",   parentId: "1",  pinLevel: "", active: true,  status: "PC",       gender: "男性", birthYear: "1990", birthDate: "01-05", hometown: "愛知県",   joinDate: "2019-09-01", note: "" },
   { id: "4",  name: "佐藤 美咲",   parentId: "2",  pinLevel: "", active: true,  status: "ABO",      gender: "女性", birthYear: "1997", birthDate: "09-23", hometown: "東京都",   joinDate: "2020-03-10", note: "" },
   { id: "5",  name: "伊藤 健太",   parentId: "2",  pinLevel: "", active: false, status: "プロスペクト", gender: "男性", birthYear: "2001", birthDate: "03-10", hometown: "北海道",   joinDate: "2020-07-20", note: "" },

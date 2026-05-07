@@ -203,6 +203,14 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, us
               {form.active ? "有効" : "無効"}
             </button>
           </Field>
+          <Field label="形状">
+            <select style={s.input} value={form.shape ?? "ELP"}
+              onChange={e => setForm(f => ({ ...f, shape: e.target.value }))}>
+              <option value="ELP">楕円（既定）</option>
+              <option value="DIA">DIA（ダイヤ・大）</option>
+              <option value="EME">EME（エメラルド）</option>
+            </select>
+          </Field>
           <Field label="誕生年">
             <select style={s.input} value={form.birthYear || ""}
               onChange={e => setForm(f => ({ ...f, birthYear: e.target.value }))}>

@@ -6,6 +6,9 @@ const NODE_RY = 28;
 const NODE_RY_2LINE = 36;
 const MIN_GAP = 18;
 
+const SHAPE_RX = { DIA: 64, EME: 46 };
+const SHAPE_RY = { DIA: 50, EME: 36 };
+
 // Ellipse boundary radius in the direction (dx, dy)
 function ellipseR(dx, dy, rx, ry) {
   const len = Math.hypot(dx, dy);
@@ -148,12 +151,14 @@ export default function MapCanvas({
     d3.select(svgRef.current)
       .select(".nodes")
       .selectAll("g")
-      .select(".node-ellipse")
+      .select(".node-border")
       .attr("stroke", d => {
         if (highlightIds?.has(d.id)) return "#fbbf24";
         if (d.id === selectedNodeId) return "#ffffff";
         if (currentUserUid && d.data.userId === currentUserUid) return "#6ee7b7";
         if (d.data.userId) return "#a78bfa";
+        const shape = d.data?.shape;
+        if (shape === "DIA" || shape === "EME") return "none";
         return "rgba(232,213,176,0.35)";
       })
       .attr("stroke-width", d => {
@@ -162,7 +167,11 @@ export default function MapCanvas({
         if (d.data.userId) return 2;
         return 1.5;
       })
-      .attr("filter", d => d.id === selectedNodeId ? "url(#glow)" : null)
+      .attr("filter", d => {
+        const shape = d.data?.shape;
+        if (shape === "DIA" || shape === "EME") return null;
+        return d.id === selectedNodeId ? "url(#glow)" : null;
+      })
       .attr("stroke-dasharray", d => d.data.status === "プロスペクト" ? "6 4" : null);
   }, [selectedNodeId, highlightIds, currentUserUid]);
 
@@ -190,6 +199,59 @@ export default function MapCanvas({
     feMerge.append("feMergeNode").attr("in", "blur");
     feMerge.append("feMergeNode").attr("in", "SourceGraphic");
 
+    const diaGrad = defs.append("linearGradient")
+      .attr("id", "dia-grad").attr("x1", 0).attr("y1", -1).attr("x2", 0).attr("y2", 1);
+    diaGrad.append("stop").attr("offset", "0%").attr("stop-color", "#ffffff");
+    diaGrad.append("stop").attr("offset", "45%").attr("stop-color", "#dff1ff");
+    diaGrad.append("stop").attr("offset", "100%").attr("stop-color", "#9ec9e8");
+
+    const emeGrad = defs.append("linearGradient")
+      .attr("id", "eme-grad").attr("x1", 0).attr("y1", -1).attr("x2", 0).attr("y2", 1);
+    emeGrad.append("stop").attr("offset", "0%").attr("stop-color", "#d6f5c7");
+    emeGrad.append("stop").attr("offset", "50%").attr("stop-color", "#7ed95a");
+    emeGrad.append("stop").attr("offset", "100%").attr("stop-color", "#3a8a2a");
+
+    const diaShape = defs.append("g").attr("id", "dia-shape");
+    diaShape.append("path")
+      .attr("d", "M -60,-12 L -36,-40 L 36,-40 L 60,-12 L 0,50 Z")
+      .attr("fill", "url(#dia-grad)").attr("stroke", "#3a6f96")
+      .attr("stroke-width", 2).attr("stroke-linejoin", "round");
+    for (const [[x1,y1],[x2,y2],sw,op] of [
+      [[-60,-12],[60,-12],1.4,1], [[-36,-40],[-20,-12],1.2,1],
+      [[-12,-40],[-12,-12],1.2,1], [[12,-40],[12,-12],1.2,1],
+      [[36,-40],[20,-12],1.2,1], [[-60,-12],[-22,6],1.2,1],
+      [[-22,6],[0,50],1.2,1], [[22,6],[0,50],1.2,1],
+      [[60,-12],[22,6],1.2,1], [[-22,6],[22,6],1.2,1],
+      [[-20,-12],[-22,6],1,1], [[20,-12],[22,6],1,1],
+      [[-12,-12],[-22,6],0.9,0.7], [[12,-12],[22,6],0.9,0.7],
+      [[0,-12],[0,6],0.9,0.7],
+    ]) {
+      const l = diaShape.append("line")
+        .attr("x1",x1).attr("y1",y1).attr("x2",x2).attr("y2",y2)
+        .attr("stroke","#3a6f96").attr("stroke-width",sw);
+      if (op < 1) l.attr("opacity", op);
+    }
+
+    const emeShape = defs.append("g").attr("id", "eme-shape");
+    emeShape.append("path")
+      .attr("d", "M -42,-8 L -25,-28 L 25,-28 L 42,-8 L 0,36 Z")
+      .attr("fill", "url(#eme-grad)").attr("stroke", "#1f5a18")
+      .attr("stroke-width", 1.8).attr("stroke-linejoin", "round");
+    for (const [[x1,y1],[x2,y2],sw,op] of [
+      [[-42,-8],[42,-8],1.2,1], [[-25,-28],[-14,-8],1,1],
+      [[-8,-28],[-8,-8],1,1], [[8,-28],[8,-8],1,1],
+      [[25,-28],[14,-8],1,1], [[-42,-8],[-14,6],1,1],
+      [[-14,6],[0,36],1,1], [[14,6],[0,36],1,1],
+      [[42,-8],[14,6],1,1], [[-14,6],[14,6],1,1],
+      [[-14,-8],[-14,6],0.8,0.7], [[14,-8],[14,6],0.8,0.7],
+      [[0,-8],[0,6],0.8,0.7],
+    ]) {
+      const l = emeShape.append("line")
+        .attr("x1",x1).attr("y1",y1).attr("x2",x2).attr("y2",y2)
+        .attr("stroke","#1f5a18").attr("stroke-width",sw);
+      if (op < 1) l.attr("opacity", op);
+    }
+
     const zoom = d3.zoom()
       .scaleExtent([0.1, 4])
       .on("zoom", e => g.attr("transform", e.transform));
@@ -208,8 +270,16 @@ export default function MapCanvas({
     d3.tree().size([2 * Math.PI, (root.height || 1) * (NODE_RX * 2 + MIN_GAP)])(root);
 
     const show2Line = n => labelMode === "name+rank" && !!n.data?.pinLevel;
-    const nodeRxFn = n => n.data?.active ? NODE_RX : NODE_RY;
-    const nodeRyFn = n => n.data?.active ? (show2Line(n) ? NODE_RY_2LINE : NODE_RY) : NODE_RY;
+    const nodeRxFn = n => {
+      const s = n.data?.shape;
+      if (s === "DIA" || s === "EME") return SHAPE_RX[s];
+      return n.data?.active ? NODE_RX : NODE_RY;
+    };
+    const nodeRyFn = n => {
+      const s = n.data?.shape;
+      if (s === "DIA" || s === "EME") return SHAPE_RY[s];
+      return n.data?.active ? (show2Line(n) ? NODE_RY_2LINE : NODE_RY) : NODE_RY;
+    };
 
     // Build simulation nodes (initial positions from tree layout)
     const simNodes = root.descendants().map(d => ({
@@ -267,16 +337,18 @@ export default function MapCanvas({
         onContextMenu?.(d.data.id, event.clientX, event.clientY);
       })
       .on("mouseenter", function () {
-        d3.select(this).select(".node-ellipse").transition().duration(120).attr("transform", "scale(1.05)");
+        d3.select(this).select(".node-shape, .node-ellipse").transition().duration(120).attr("transform", "scale(1.05)");
       })
       .on("mouseleave", function () {
-        d3.select(this).select(".node-ellipse").transition().duration(120).attr("transform", "scale(1)");
+        d3.select(this).select(".node-shape, .node-ellipse").transition().duration(120).attr("transform", "scale(1)");
       });
 
     nodeG.transition().duration(300).style("opacity", 1);
 
-    nodeG.append("ellipse")
-      .attr("class", "node-ellipse")
+    // ELP (既存の楕円)
+    nodeG.filter(d => !d.data.shape || d.data.shape === "ELP")
+      .append("ellipse")
+      .attr("class", "node-border node-ellipse")
       .attr("rx", nodeRxFn)
       .attr("ry", nodeRyFn)
       .attr("fill", d => {
@@ -302,7 +374,39 @@ export default function MapCanvas({
       .attr("stroke-dasharray", d => d.data.status === "プロスペクト" ? "6 4" : null)
       .attr("opacity", d => d.data.active ? 1 : 0.5);
 
-    nodeG.filter(d => d.data.active)
+    // DIA shape
+    nodeG.filter(d => d.data.shape === "DIA")
+      .append("use").attr("class", "node-shape").attr("href", "#dia-shape")
+      .attr("filter", "url(#glow)");
+    nodeG.filter(d => d.data.shape === "DIA")
+      .append("ellipse").attr("class", "node-border")
+      .attr("rx", SHAPE_RX.DIA).attr("ry", SHAPE_RY.DIA)
+      .attr("fill", "none")
+      .attr("stroke", d => {
+        if (curHighlightIds?.has(d.id)) return "#fbbf24";
+        if (d.id === curSelectedId) return "#ffffff";
+        return "none";
+      })
+      .attr("stroke-width", 2.5)
+      .attr("stroke-dasharray", d => d.data.status === "プロスペクト" ? "6 4" : null);
+
+    // EME shape
+    nodeG.filter(d => d.data.shape === "EME")
+      .append("use").attr("class", "node-shape").attr("href", "#eme-shape");
+    nodeG.filter(d => d.data.shape === "EME")
+      .append("ellipse").attr("class", "node-border")
+      .attr("rx", SHAPE_RX.EME).attr("ry", SHAPE_RY.EME)
+      .attr("fill", "none")
+      .attr("stroke", d => {
+        if (curHighlightIds?.has(d.id)) return "#fbbf24";
+        if (d.id === curSelectedId) return "#ffffff";
+        return "none";
+      })
+      .attr("stroke-width", 2.5)
+      .attr("stroke-dasharray", d => d.data.status === "プロスペクト" ? "6 4" : null);
+
+    // ELP テキスト（active のみ）
+    nodeG.filter(d => d.data.active && (!d.data.shape || d.data.shape === "ELP"))
       .append("text")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "middle")
@@ -316,7 +420,7 @@ export default function MapCanvas({
       .attr("pointer-events", "none")
       .text(d => d.data.name);
 
-    nodeG.filter(d => show2Line(d))
+    nodeG.filter(d => show2Line(d) && (!d.data.shape || d.data.shape === "ELP"))
       .append("text")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "middle")
@@ -325,6 +429,23 @@ export default function MapCanvas({
       .attr("font-size", "10px")
       .attr("pointer-events", "none")
       .text(d => d.data.pinLevel);
+
+    // DIA/EME テキスト（濃色背景に合わせた暗色）
+    nodeG.filter(d => d.data.shape === "DIA" || d.data.shape === "EME")
+      .append("text")
+      .attr("text-anchor", "middle").attr("y", -2)
+      .attr("fill", d => d.data.shape === "DIA" ? "#1a3a5a" : "#0e3318")
+      .attr("font-size", "12px").attr("font-weight", 600)
+      .attr("pointer-events", "none")
+      .text(d => d.data.name);
+
+    nodeG.filter(d => d.data.shape === "DIA" || d.data.shape === "EME")
+      .append("text")
+      .attr("text-anchor", "middle").attr("y", d => d.data.shape === "DIA" ? 14 : 11)
+      .attr("fill", d => d.data.shape === "DIA" ? "#1a3a5a" : "#0e3318")
+      .attr("font-size", "10px")
+      .attr("pointer-events", "none")
+      .text(d => d.data.shape);
 
     nodeG.filter(d => d.data.id === rootNodeId)
       .append("text")

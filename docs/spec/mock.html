@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<title>Group Map — Shape & Multi-Anchor Mock</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1f35;
+    --gold: #e8d5b0;
+    --gold-dim: #b8a585;
+    --gold-line: rgba(232,213,176,0.35);
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--gold); font-family: -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; }
+  #app { width: 100%; height: 100vh; position: relative; overflow: hidden;
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(60,80,120,0.35), transparent 60%),
+      radial-gradient(ellipse at 70% 80%, rgba(40,60,90,0.4), transparent 60%),
+      #0d1f35;
+  }
+  svg { width: 100%; height: 100%; display: block; cursor: grab; }
+  svg:active { cursor: grabbing; }
+
+  .header {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+    padding: 14px 20px;
+    display: flex; align-items: center; gap: 16px;
+    background: linear-gradient(to bottom, rgba(13,31,53,0.85), rgba(13,31,53,0));
+    pointer-events: none;
+  }
+  .title { font-family: "Georgia", serif; font-size: 20px; font-weight: 700; color: var(--gold); letter-spacing: 1px; }
+  .subtitle { font-size: 13px; color: var(--gold-dim); }
+
+  .legend {
+    position: absolute; top: 60px; left: 20px; z-index: 9;
+    background: rgba(13,31,53,0.7); border: 1px solid var(--gold-line);
+    border-radius: 10px; padding: 12px 14px; backdrop-filter: blur(6px);
+    font-size: 12px; color: var(--gold-dim); line-height: 1.6;
+  }
+  .legend h4 { margin: 0 0 6px; color: var(--gold); font-size: 12px; font-weight: 600; }
+  .legend .row { display: flex; align-items: center; gap: 8px; }
+  .legend .swatch { width: 22px; height: 18px; flex-shrink: 0; display: inline-block; }
+
+  .toolbar {
+    position: absolute; top: 60px; right: 20px; z-index: 9;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .btn {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: rgba(13,31,53,0.92); border: 1px solid var(--gold-line);
+    color: var(--gold-dim); font-size: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(6px);
+  }
+  .btn:hover { color: var(--gold); border-color: var(--gold); }
+
+  .node-label { font-size: 12px; fill: #1a2030; font-weight: 600; pointer-events: none; }
+  .node-sub   { font-size: 10px; fill: #1a2030; pointer-events: none; }
+  .node:hover .node-shape { filter: brightness(1.1); }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="header">
+    <div class="title">Group Map</div>
+    <div class="subtitle">Shape & Multi-Anchor Demo</div>
+  </div>
+
+  <div class="legend">
+    <h4>形状凡例</h4>
+    <div class="row"><svg class="swatch" viewBox="-30 -34 60 68"><use href="#legend-dia"/></svg><span>DIA（規定ノード）</span></div>
+    <div class="row"><svg class="swatch" viewBox="-22 -26 44 52"><use href="#legend-eme"/></svg><span>EME</span></div>
+    <div class="row"><svg class="swatch" viewBox="-30 -14 60 28"><use href="#legend-elp"/></svg><span>楕円（既定）</span></div>
+    <div class="row"><svg class="swatch" viewBox="-30 -14 60 28"><use href="#legend-elp-dash"/></svg><span>プロスペクト（破線）</span></div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn" id="fit-btn" title="フィット">⤢</button>
+    <button class="btn" id="reset-btn" title="リセット">↺</button>
+  </div>
+
+  <svg id="map">
+    <defs>
+      <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+        <feGaussianBlur stdDeviation="3" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+
+      <linearGradient id="dia-grad" x1="0" y1="-1" x2="0" y2="1">
+        <stop offset="0%"  stop-color="#ffffff"/>
+        <stop offset="45%" stop-color="#dff1ff"/>
+        <stop offset="100%" stop-color="#9ec9e8"/>
+      </linearGradient>
+      <linearGradient id="eme-grad" x1="0" y1="-1" x2="0" y2="1">
+        <stop offset="0%"  stop-color="#d6f5c7"/>
+        <stop offset="50%" stop-color="#7ed95a"/>
+        <stop offset="100%" stop-color="#3a8a2a"/>
+      </linearGradient>
+
+      <symbol id="legend-dia" overflow="visible"><g transform="scale(0.55)"><use href="#dia-shape"/></g></symbol>
+      <symbol id="legend-eme" overflow="visible"><g transform="scale(0.6)"><use href="#eme-shape"/></g></symbol>
+      <symbol id="legend-elp" overflow="visible"><ellipse cx="0" cy="0" rx="28" ry="11" fill="#fff" stroke="#1a2030" stroke-width="1.5"/></symbol>
+      <symbol id="legend-elp-dash" overflow="visible"><ellipse cx="0" cy="0" rx="28" ry="11" fill="#fff" stroke="#c33" stroke-width="1.5" stroke-dasharray="5 3"/></symbol>
+
+      <g id="dia-shape">
+        <path d="M -60,-12  L -36,-40  L 36,-40  L 60,-12  L 0,50  Z"
+              fill="url(#dia-grad)" stroke="#3a6f96" stroke-width="2" stroke-linejoin="round"/>
+        <line x1="-60" y1="-12" x2="60" y2="-12" stroke="#3a6f96" stroke-width="1.4"/>
+        <line x1="-36" y1="-40" x2="-20" y2="-12" stroke="#3a6f96" stroke-width="1.2"/>
+        <line x1="-12" y1="-40" x2="-12" y2="-12" stroke="#3a6f96" stroke-width="1.2"/>
+        <line x1="12"  y1="-40" x2="12"  y2="-12" stroke="#3a6f96" stroke-width="1.2"/>
+        <line x1="36"  y1="-40" x2="20"  y2="-12" stroke="#3a6f96" stroke-width="1.2"/>
+        <line x1="-60" y1="-12" x2="-22" y2="6"  stroke="#3a6f96" stroke-width="1.2"/>
+        <line x1="-22" y1="6"   x2="0"   y2="50" stroke="#3a6f96" stroke-width="1.2"/>
+        <line x1="22"  y1="6"   x2="0"   y2="50" stroke="#3a6f96" stroke-width="1.2"/>
+        <line x1="60"  y1="-12" x2="22"  y2="6"  stroke="#3a6f96" stroke-width="1.2"/>
+        <line x1="-22" y1="6"   x2="22"  y2="6"  stroke="#3a6f96" stroke-width="1.2"/>
+        <line x1="-20" y1="-12" x2="-22" y2="6"  stroke="#3a6f96" stroke-width="1"/>
+        <line x1="20"  y1="-12" x2="22"  y2="6"  stroke="#3a6f96" stroke-width="1"/>
+        <line x1="-12" y1="-12" x2="-22" y2="6"  stroke="#3a6f96" stroke-width="0.9" opacity="0.7"/>
+        <line x1="12"  y1="-12" x2="22"  y2="6"  stroke="#3a6f96" stroke-width="0.9" opacity="0.7"/>
+        <line x1="0"   y1="-12" x2="0"   y2="6"  stroke="#3a6f96" stroke-width="0.9" opacity="0.7"/>
+      </g>
+
+      <g id="eme-shape">
+        <path d="M -42,-8  L -25,-28  L 25,-28  L 42,-8  L 0,36  Z"
+              fill="url(#eme-grad)" stroke="#1f5a18" stroke-width="1.8" stroke-linejoin="round"/>
+        <line x1="-42" y1="-8" x2="42" y2="-8" stroke="#1f5a18" stroke-width="1.2"/>
+        <line x1="-25" y1="-28" x2="-14" y2="-8" stroke="#1f5a18" stroke-width="1"/>
+        <line x1="-8"  y1="-28" x2="-8"  y2="-8" stroke="#1f5a18" stroke-width="1"/>
+        <line x1="8"   y1="-28" x2="8"   y2="-8" stroke="#1f5a18" stroke-width="1"/>
+        <line x1="25"  y1="-28" x2="14"  y2="-8" stroke="#1f5a18" stroke-width="1"/>
+        <line x1="-42" y1="-8" x2="-14" y2="6"  stroke="#1f5a18" stroke-width="1"/>
+        <line x1="-14" y1="6"  x2="0"   y2="36" stroke="#1f5a18" stroke-width="1"/>
+        <line x1="14"  y1="6"  x2="0"   y2="36" stroke="#1f5a18" stroke-width="1"/>
+        <line x1="42"  y1="-8" x2="14"  y2="6"  stroke="#1f5a18" stroke-width="1"/>
+        <line x1="-14" y1="6"  x2="14"  y2="6"  stroke="#1f5a18" stroke-width="1"/>
+        <line x1="-14" y1="-8" x2="-14" y2="6"  stroke="#1f5a18" stroke-width="0.8" opacity="0.7"/>
+        <line x1="14"  y1="-8" x2="14"  y2="6"  stroke="#1f5a18" stroke-width="0.8" opacity="0.7"/>
+        <line x1="0"   y1="-8" x2="0"   y2="6"  stroke="#1f5a18" stroke-width="0.8" opacity="0.7"/>
+      </g>
+    </defs>
+  </svg>
+</div>
+
+<script>
+// =========================================================================
+// サンプルデータ（汎用ダミー）
+//   - DIA 3つを規定ノード(anchor)として配置
+//   - 各DIA配下にEMEと楕円が混在
+// =========================================================================
+const NODES = [
+  // 規定ノード（DIA）×3
+  { id: "a1", name: "Anchor A", shape: "DIA", anchor: true, parentId: null },
+  { id: "a2", name: "Anchor B", shape: "DIA", anchor: true, parentId: null },
+  { id: "a3", name: "Anchor C", shape: "DIA", anchor: true, parentId: null },
+
+  // Anchor A 系列
+  { id: "a1-1", name: "Member A1", shape: "EME", parentId: "a1" },
+  { id: "a1-2", name: "Member A2", shape: "EME", parentId: "a1" },
+  { id: "a1-3", name: "Member A3", shape: "ELP", pinLevel: "SP",  parentId: "a1" },
+  { id: "a1-1-1", name: "Member A1-a", shape: "ELP", pinLevel: "FPT", parentId: "a1-1" },
+  { id: "a1-1-2", name: "Member A1-b", shape: "ELP", pinLevel: "B9",  parentId: "a1-1" },
+  { id: "a1-2-1", name: "Member A2-a", shape: "ELP", pinLevel: "SP2", parentId: "a1-2" },
+  { id: "a1-2-2", name: "Member A2-b", shape: "ELP", pinLevel: "PT",  parentId: "a1-2", prospect: true },
+
+  // Anchor B 系列
+  { id: "a2-1", name: "Member B1", shape: "EME", parentId: "a2" },
+  { id: "a2-2", name: "Member B2", shape: "ELP", pinLevel: "SP", parentId: "a2" },
+  { id: "a2-3", name: "Member B3", shape: "ELP", pinLevel: "FPT", parentId: "a2" },
+  { id: "a2-1-1", name: "Member B1-a", shape: "ELP", pinLevel: "B9",  parentId: "a2-1" },
+  { id: "a2-1-2", name: "Member B1-b", shape: "ELP", pinLevel: "GP5", parentId: "a2-1" },
+  { id: "a2-2-1", name: "Member B2-a", shape: "ELP", pinLevel: "SP2", parentId: "a2-2", prospect: true },
+
+  // Anchor C 系列
+  { id: "a3-1", name: "Member C1", shape: "EME", parentId: "a3" },
+  { id: "a3-2", name: "Member C2", shape: "EME", parentId: "a3" },
+  { id: "a3-3", name: "Member C3", shape: "ELP", pinLevel: "SP",  parentId: "a3" },
+  { id: "a3-4", name: "Member C4", shape: "ELP", pinLevel: "B15", parentId: "a3" },
+  { id: "a3-1-1", name: "Member C1-a", shape: "ELP", pinLevel: "FPT", parentId: "a3-1" },
+  { id: "a3-1-2", name: "Member C1-b", shape: "ELP", pinLevel: "SP", parentId: "a3-1" },
+  { id: "a3-2-1", name: "Member C2-a", shape: "ELP", pinLevel: "B9", parentId: "a3-2" },
+  { id: "a3-2-2", name: "Member C2-b", shape: "ELP", pinLevel: "PT", parentId: "a3-2", prospect: true },
+  { id: "a3-3-1", name: "Member C3-a", shape: "ELP", pinLevel: "SP2", parentId: "a3-3" },
+];
+
+const SHAPE_RX = { DIA: 64, EME: 46, ELP: 56 };
+const SHAPE_RY = { DIA: 50, EME: 36, ELP: 22 };
+function nodeRx(n) { return SHAPE_RX[n.data.shape] ?? 56; }
+function nodeRy(n) { return SHAPE_RY[n.data.shape] ?? 22; }
+
+const svg = d3.select("#map");
+const svgEl = svg.node();
+const W = () => svgEl.clientWidth;
+const H = () => svgEl.clientHeight;
+
+const root = svg.append("g").attr("class", "viewport");
+const linkLayer = root.append("g").attr("class", "links");
+const nodeLayer = root.append("g").attr("class", "nodes");
+
+const zoom = d3.zoom().scaleExtent([0.2, 3]).on("zoom", e => root.attr("transform", e.transform));
+svg.call(zoom);
+
+const simNodes = NODES.map(n => ({
+  id: n.id, data: n,
+  x: (Math.random() - 0.5) * 600,
+  y: (Math.random() - 0.5) * 400,
+}));
+const byId = new Map(simNodes.map(n => [n.id, n]));
+const simLinks = NODES.filter(n => n.parentId).map(n => ({ source: n.parentId, target: n.id }));
+
+function ellipseR(dx, dy, rx, ry) {
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-9) return rx;
+  const c = dx / len, s = dy / len;
+  return (rx * ry) / Math.sqrt((ry * c) ** 2 + (rx * s) ** 2);
+}
+function forceEllipseCollide(gap) {
+  let ns;
+  function force(alpha) {
+    for (let i = 0; i < ns.length - 1; i++) {
+      const a = ns[i];
+      for (let j = i + 1; j < ns.length; j++) {
+        const b = ns[j];
+        const dx = (b.x - a.x) || 1e-6;
+        const dy = b.y - a.y;
+        const d = Math.hypot(dx, dy);
+        const minD = ellipseR(dx, dy, nodeRx(a), nodeRy(a))
+                   + ellipseR(-dx, -dy, nodeRx(b), nodeRy(b)) + gap;
+        if (d < minD) {
+          const k = ((minD - d) / d) * alpha * 0.6;
+          a.vx -= dx * k; a.vy -= dy * k;
+          b.vx += dx * k; b.vy += dy * k;
+        }
+      }
+    }
+  }
+  force.initialize = (n) => { ns = n; };
+  return force;
+}
+
+const simulation = d3.forceSimulation(simNodes)
+  .force("link", d3.forceLink(simLinks).id(d => d.id)
+    .distance(d => {
+      const baseDist = nodeRx(d.source) + nodeRx(d.target) + 30;
+      if (d.source.data?.anchor) return baseDist + 30;
+      return baseDist;
+    })
+    .strength(0.7))
+  .force("charge", d3.forceManyBody().strength(d => d.data.anchor ? -2400 : -500))
+  .force("collide", forceEllipseCollide(18))
+  .force("center", d3.forceCenter(0, 0).strength(0.04))
+  .force("x", d3.forceX(0).strength(0.02))
+  .force("y", d3.forceY(0).strength(0.04))
+  .alphaDecay(0.02)
+  .on("tick", ticked)
+  .on("end", () => fitToScreen(true));
+
+const linkSel = linkLayer.selectAll("line").data(simLinks).join("line")
+  .attr("stroke", "rgba(0,0,0,0.55)")
+  .attr("stroke-width", 1.6)
+  .attr("stroke-dasharray", d => {
+    const t = byId.get(typeof d.target === "object" ? d.target.id : d.target);
+    return t?.data?.prospect ? "5 3" : null;
+  });
+
+const nodeSel = nodeLayer.selectAll("g.node").data(simNodes, d => d.id).join("g")
+  .attr("class", "node")
+  .call(d3.drag()
+    .on("start", (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+    .on("drag",  (e, d) => { d.fx = e.x; d.fy = e.y; })
+    .on("end",   (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }));
+
+nodeSel.each(function(d) {
+  const g = d3.select(this);
+  const data = d.data;
+
+  if (data.shape === "DIA") {
+    g.append("use").attr("class", "node-shape").attr("href", "#dia-shape").attr("filter", "url(#glow)");
+    g.append("text").attr("class", "node-label").attr("text-anchor", "middle").attr("y", -2).text(data.name);
+    g.append("text").attr("class", "node-label").attr("text-anchor", "middle").attr("y", 14)
+      .style("font-size", "13px").style("fill", "#1a3a5a").text("DIA");
+  }
+  else if (data.shape === "EME") {
+    g.append("use").attr("class", "node-shape").attr("href", "#eme-shape");
+    g.append("text").attr("class", "node-label").attr("text-anchor", "middle").attr("y", -2)
+      .style("font-size", "10px").text(data.name);
+    g.append("text").attr("class", "node-label").attr("text-anchor", "middle").attr("y", 11)
+      .style("font-size", "10px").style("fill", "#0e3318").text("EME");
+  }
+  else {
+    const isProspect = !!data.prospect;
+    g.append("ellipse").attr("class", "node-shape")
+      .attr("rx", 56).attr("ry", 22)
+      .attr("fill", "#ffffff")
+      .attr("stroke", isProspect ? "#c33" : "#1a2030")
+      .attr("stroke-width", 1.5)
+      .attr("stroke-dasharray", isProspect ? "5 3" : null);
+
+    const hasSub = !!data.pinLevel;
+    g.append("text").attr("class", "node-label").attr("text-anchor", "middle")
+      .attr("y", hasSub ? -3 : 4).style("font-size", "11px").text(data.name);
+    if (hasSub) {
+      g.append("text").attr("class", "node-sub").attr("text-anchor", "middle")
+        .attr("y", 10).style("font-size", "10px").style("font-weight", "600").text(data.pinLevel);
+    }
+  }
+});
+
+function ticked() {
+  linkSel
+    .attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+    .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+  nodeSel.attr("transform", d => `translate(${d.x},${d.y})`);
+}
+
+function fitToScreen(animate) {
+  const bounds = root.node().getBBox();
+  if (!bounds.width || !bounds.height) return;
+  const padding = 60;
+  const scale = Math.min(
+    (W() - padding * 2) / bounds.width,
+    (H() - padding * 2) / bounds.height,
+    1.2,
+  );
+  const tx = W() / 2 - (bounds.x + bounds.width / 2) * scale;
+  const ty = H() / 2 - (bounds.y + bounds.height / 2) * scale;
+  const t = d3.zoomIdentity.translate(tx, ty).scale(scale);
+  if (animate) svg.transition().duration(500).call(zoom.transform, t);
+  else svg.call(zoom.transform, t);
+}
+
+document.getElementById("fit-btn").addEventListener("click", () => fitToScreen(true));
+document.getElementById("reset-btn").addEventListener("click", () => simulation.alpha(1).restart());
+window.addEventListener("resize", () => fitToScreen(false));
+</script>
+</body>
+</html>
