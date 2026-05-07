@@ -211,6 +211,16 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, us
               <option value="EME">EME（エメラルド）</option>
             </select>
           </Field>
+          <Field label="規定ノード">
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+              <input type="checkbox"
+                checked={!!form.anchor}
+                onChange={e => setForm(f => ({ ...f, anchor: e.target.checked }))} />
+              <span style={{ fontSize: 13, color: form.anchor ? "#fbbf24" : "var(--gold-dim)" }}>
+                マルチアンカーとして登録
+              </span>
+            </label>
+          </Field>
           <Field label="誕生年">
             <select style={s.input} value={form.birthYear || ""}
               onChange={e => setForm(f => ({ ...f, birthYear: e.target.value }))}>

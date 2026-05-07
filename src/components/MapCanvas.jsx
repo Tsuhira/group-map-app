@@ -111,7 +111,21 @@ export default function MapCanvas({
       }
       if (parent) parent.children.push(map[n.id]);
     });
-    return startId ? map[startId] : null;
+
+    const anchors = nodes.filter(n => n.anchor && visible(map[n.id]));
+
+    // anchor が 0個 or rootNodeId が指定されている（サブツリー単独表示）: 既存挙動
+    if (anchors.length === 0 || rootNodeId) {
+      return startId ? map[startId] : null;
+    }
+
+    // anchor 複数: 仮想ルートを立て各 anchor を子として配置
+    return {
+      id: "__virtual_root__",
+      virtual: true,
+      name: "",
+      children: anchors.map(a => map[a.id]),
+    };
   }, [nodes, rootNodeId, filterActive, filterStatuses]);
 
   const fitToScreen = useCallback((svg, g) => {
@@ -297,9 +311,18 @@ export default function MapCanvas({
 
     const nodeById = new Map(simNodes.map(n => [n.id, n]));
 
-    // Fix root node at origin
-    const rootSim = nodeById.get(rootNodeId ?? simNodes[0]?.id);
-    if (rootSim) { rootSim.fx = 0; rootSim.fy = 0; }
+    // 仮想ルートは原点固定（描画しない）、通常時は rootNodeId を固定
+    const virtualRootSim = simNodes.find(n => n.data.virtual);
+    if (virtualRootSim) {
+      virtualRootSim.fx = 0; virtualRootSim.fy = 0;
+    } else {
+      const rootSim = nodeById.get(rootNodeId ?? simNodes[0]?.id);
+      if (rootSim) { rootSim.fx = 0; rootSim.fy = 0; }
+    }
+
+    // 仮想ルートとそこへのリンクは描画から除外
+    const visibleSimNodes = simNodes.filter(n => !n.data.virtual);
+    const visibleSimLinks = simLinks.filter(l => l.source !== "__virtual_root__");
 
     const curSelectedId = selectedNodeIdRef.current;
     const curHighlightIds = highlightIdsRef.current;
@@ -307,7 +330,7 @@ export default function MapCanvas({
     // Render links (positions updated each tick)
     const linkSel = g.append("g").attr("class", "links")
       .selectAll("line")
-      .data(simLinks)
+      .data(visibleSimLinks)
       .join("line")
       .attr("stroke", "rgba(255,255,255,0.25)")
       .attr("stroke-width", d => {
@@ -323,10 +346,10 @@ export default function MapCanvas({
         return tgt?.data.status === "プロスペクト" ? "6 4" : null;
       });
 
-    // Render node groups
+    // Render node groups（仮想ルートは除外）
     const nodeG = g.append("g").attr("class", "nodes")
       .selectAll("g")
-      .data(simNodes, d => d.id)
+      .data(visibleSimNodes, d => d.id)
       .join("g")
       .attr("cursor", "pointer")
       .style("opacity", 0)
@@ -470,13 +493,13 @@ export default function MapCanvas({
     }
 
     const simulation = d3.forceSimulation(simNodes)
-      .force("link", d3.forceLink(simLinks)
+      .force("link", d3.forceLink(visibleSimLinks)
         .id(d => d.id)
         .distance(d => nodeRxFn(d.source) + nodeRxFn(d.target) + 40)
         .strength(0.5))
-      .force("charge", d3.forceManyBody().strength(-800))
+      .force("charge", d3.forceManyBody().strength(d => d.data.anchor ? -2400 : -800))
       .force("collide", forceEllipseCollide(nodeRxFn, nodeRyFn, MIN_GAP))
-      .force("edgeClear", forceEdgeClear(simLinks, nodeRxFn, nodeRyFn, MIN_GAP))
+      .force("edgeClear", forceEdgeClear(visibleSimLinks, nodeRxFn, nodeRyFn, MIN_GAP))
       .force("x", d3.forceX(0).strength(0.04))
       .force("y", d3.forceY(0).strength(0.04))
       .alphaDecay(0.018)
