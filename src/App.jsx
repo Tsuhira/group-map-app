@@ -56,13 +56,15 @@ export default function App() {
   const headerRef = useRef(null);
   const importInputRef = useRef(null);
 
-  // rootNodeId を nodes に合わせてバリデーション
+  // rootNodeId を nodes に合わせてバリデーション（無効になった時だけリセット）
   useEffect(() => {
     if (!nodes || nodes.length === 0) return;
-    if (!rootNodeId || !nodes.some(n => n.id === rootNodeId)) {
-      const dataRoot = nodes.find(n => !n.parentId);
-      setRootNodeId(dataRoot?.id ?? null);
-    }
+    if (rootNodeId && nodes.some(n => n.id === rootNodeId)) return; // 有効なら何もしない
+    const rootNodes = nodes.filter(n => !n.parentId);
+    const newId = rootNodes.length === 1 ? rootNodes[0].id : null;
+    setRootNodeId(newId);
+    if (newId) localStorage.setItem("rootNodeId", newId);
+    else localStorage.removeItem("rootNodeId");
   }, [nodes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectedNode = nodes?.find(n => n.id === selectedNodeId) ?? null;
@@ -120,8 +122,10 @@ export default function App() {
   }, []);
 
   const handleGoToGlobalMap = useCallback(() => {
-    if (trueRootId) handleSetRoot(trueRootId);
-  }, [trueRootId, handleSetRoot]);
+    setRootNodeId(null);
+    localStorage.removeItem("rootNodeId");
+    setSelectedNodeId(null);
+  }, []);
 
   const handleSwitchMap = useCallback((mapId) => {
     setCurrentMapId(mapId);
@@ -150,6 +154,8 @@ export default function App() {
   }, [updateNode]);
 
   const handleAddRoot = useCallback(() => {
+    setRootNodeId(null);
+    localStorage.removeItem("rootNodeId");
     setAddingForId(ROOT_SENTINEL);
     setSelectedNodeId(null);
   }, []);
