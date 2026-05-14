@@ -194,19 +194,27 @@ export default function App() {
     e.target.value = "";
     const reader = new FileReader();
     reader.onload = async (ev) => {
+      let parsed;
       try {
-        const parsed = JSON.parse(ev.target.result);
-        const err = validateImport(parsed);
-        if (err) { alert(`インポートエラー: ${err}`); return; }
+        parsed = JSON.parse(ev.target.result);
+      } catch {
+        alert("JSONの解析に失敗しました（不正なJSON形式）");
+        return;
+      }
+      const err = validateImport(parsed);
+      if (err) { alert(`インポートエラー: ${err}`); return; }
+      try {
         const newNodes = parsed.nodes;
-        const dataRoot = newNodes.find(n => !n.parentId);
+        const rootNodes = newNodes.filter(n => !n.parentId);
+        const newRootId = rootNodes.length === 1 ? rootNodes[0].id : null;
         await replaceAll(newNodes);
-        setRootNodeId(dataRoot?.id ?? null);
-        localStorage.setItem("rootNodeId", dataRoot?.id ?? "");
+        setRootNodeId(newRootId);
+        if (newRootId) localStorage.setItem("rootNodeId", newRootId);
+        else localStorage.removeItem("rootNodeId");
         setSelectedNodeId(null);
         setAddingForId(null);
-      } catch {
-        alert("JSONの解析に失敗しました");
+      } catch (e) {
+        alert(`インポートエラー: ${e.message}`);
       }
     };
     reader.readAsText(file);
