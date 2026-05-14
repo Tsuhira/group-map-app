@@ -135,13 +135,23 @@ export default function App() {
     setAddingForId(null);
   }, []);
 
-  const handleCreateMap = useCallback(async (name) => {
+  const handleCreateMap = useCallback(async (name, initialNodes = null) => {
     const mapId = `map_${Date.now()}`;
     await fs.createMap(mapId, name.trim(), user.idToken);
+    if (initialNodes?.length > 0) {
+      await fs.replaceAll(initialNodes, user.idToken, mapId);
+    }
     const newMap = { id: mapId, name: name.trim() };
     setMaps(prev => [...prev, newMap]);
-    handleSwitchMap(mapId);
-  }, [user, handleSwitchMap]);
+    setCurrentMapId(mapId);
+    setSelectedNodeId(null);
+    setAddingForId(null);
+    const rootNodes = (initialNodes ?? []).filter(n => !n.parentId);
+    const newRootId = rootNodes.length === 1 ? rootNodes[0].id : null;
+    setRootNodeId(newRootId);
+    if (newRootId) localStorage.setItem("rootNodeId", newRootId);
+    else localStorage.removeItem("rootNodeId");
+  }, [user]);
 
   const handleAddNode = useCallback(async (nodeData) => {
     await addNode(nodeData);
@@ -203,22 +213,33 @@ export default function App() {
       }
       const err = validateImport(parsed);
       if (err) { alert(`インポートエラー: ${err}`); return; }
-      try {
-        const newNodes = parsed.nodes;
+      const newNodes = parsed.nodes;
+      if (mode === "firestore") {
+        const defaultName = file.name.replace(/\.json$/i, "");
+        const mapName = window.prompt("新しいマップ名を入力してください", defaultName);
+        if (!mapName?.trim()) return;
+        try {
+          await handleCreateMap(mapName.trim(), newNodes);
+        } catch (e) {
+          alert(`インポートエラー: ${e.message}`);
+        }
+      } else {
         const rootNodes = newNodes.filter(n => !n.parentId);
         const newRootId = rootNodes.length === 1 ? rootNodes[0].id : null;
-        await replaceAll(newNodes);
-        setRootNodeId(newRootId);
-        if (newRootId) localStorage.setItem("rootNodeId", newRootId);
-        else localStorage.removeItem("rootNodeId");
-        setSelectedNodeId(null);
-        setAddingForId(null);
-      } catch (e) {
-        alert(`インポートエラー: ${e.message}`);
+        try {
+          await replaceAll(newNodes);
+          setRootNodeId(newRootId);
+          if (newRootId) localStorage.setItem("rootNodeId", newRootId);
+          else localStorage.removeItem("rootNodeId");
+          setSelectedNodeId(null);
+          setAddingForId(null);
+        } catch (e) {
+          alert(`インポートエラー: ${e.message}`);
+        }
       }
     };
     reader.readAsText(file);
-  }, [replaceAll]);
+  }, [replaceAll, mode, handleCreateMap]);
 
   if (authLoading || nodes === null) {
     return (
