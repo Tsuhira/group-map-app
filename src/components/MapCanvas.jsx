@@ -112,19 +112,19 @@ export default function MapCanvas({
       if (parent) parent.children.push(map[n.id]);
     });
 
-    const anchors = nodes.filter(n => n.anchor && visible(map[n.id]));
+    const roots = nodes.filter(n => !n.parentId && visible(map[n.id]));
 
-    // anchor が 0個 or rootNodeId が指定されている（サブツリー単独表示）: 既存挙動
-    if (anchors.length === 0 || rootNodeId) {
+    // rootNodeId 指定中 or ルートが1つ: 既存挙動
+    if (roots.length <= 1 || rootNodeId) {
       return startId ? map[startId] : null;
     }
 
-    // anchor 複数: 仮想ルートを立て各 anchor を子として配置
+    // ルートが複数: 仮想ルートを立て各ルートを子として配置
     return {
       id: "__virtual_root__",
       virtual: true,
       name: "",
-      children: anchors.map(a => map[a.id]),
+      children: roots.map(r => map[r.id]),
     };
   }, [nodes, rootNodeId, filterActive, filterStatuses]);
 
@@ -497,7 +497,7 @@ export default function MapCanvas({
         .id(d => d.id)
         .distance(d => nodeRxFn(d.source) + nodeRxFn(d.target) + 40)
         .strength(0.5))
-      .force("charge", d3.forceManyBody().strength(d => d.data.anchor ? -2400 : -800))
+      .force("charge", d3.forceManyBody().strength(d => !d.data.parentId ? -2400 : -800))
       .force("collide", forceEllipseCollide(nodeRxFn, nodeRyFn, MIN_GAP))
       .force("edgeClear", forceEdgeClear(visibleSimLinks, nodeRxFn, nodeRyFn, MIN_GAP))
       .force("x", d3.forceX(0).strength(0.04))

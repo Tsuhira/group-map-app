@@ -149,11 +149,10 @@ export default function App() {
     await updateNode(nodeData);
   }, [updateNode]);
 
-  const handleToggleAnchor = useCallback(async (nodeId) => {
-    const n = nodes?.find(x => x.id === nodeId);
-    if (!n) return;
-    await updateNode({ ...n, anchor: !n.anchor });
-  }, [nodes, updateNode]);
+  const handleAddRoot = useCallback(() => {
+    setAddingForId(ROOT_SENTINEL);
+    setSelectedNodeId(null);
+  }, []);
 
   const handleDeleteNode = useCallback(async (nodeId) => {
     const target = nodes?.find(n => n.id === nodeId);
@@ -303,6 +302,7 @@ export default function App() {
           onAdd={handleAddNode}
           onDelete={handleDeleteNode}
           onAddChild={handleAddChild}
+          onAddRoot={handleAddRoot}
           onSetRoot={handleSetRoot}
         />
       </div>
@@ -319,8 +319,8 @@ export default function App() {
           hasChildren={contextHasChildren}
           onEdit={() => setSelectedNodeId(contextNode.id)}
           onAddChild={() => handleAddChild(contextNode.id)}
+          onAddRoot={handleAddRoot}
           onSetRoot={() => handleSetRoot(contextNode.id)}
-          onToggleAnchor={() => handleToggleAnchor(contextNode.id)}
           onDelete={() => {
             if (!window.confirm(`「${contextNode.name}」を削除しますか？`)) return;
             handleDeleteNode(contextNode.id);

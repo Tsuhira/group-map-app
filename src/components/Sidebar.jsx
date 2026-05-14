@@ -48,7 +48,7 @@ function newDraft(parentId) {
   };
 }
 
-export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, userNodeId, onClose, onUpdate, onAdd, onDelete, onAddChild, onSetRoot }) {
+export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, userNodeId, onClose, onUpdate, onAdd, onDelete, onAddChild, onAddRoot, onSetRoot }) {
   const { isMobile } = useBreakpoint();
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState(null);
@@ -211,16 +211,6 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, us
               <option value="EME">EME（エメラルド）</option>
             </select>
           </Field>
-          <Field label="規定ノード">
-            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-              <input type="checkbox"
-                checked={!!form.anchor}
-                onChange={e => setForm(f => ({ ...f, anchor: e.target.checked }))} />
-              <span style={{ fontSize: 13, color: form.anchor ? "#fbbf24" : "var(--gold-dim)" }}>
-                マルチアンカーとして登録
-              </span>
-            </label>
-          </Field>
           <Field label="誕生年">
             <select style={s.input} value={form.birthYear || ""}
               onChange={e => setForm(f => ({ ...f, birthYear: e.target.value }))}>
@@ -325,6 +315,9 @@ export default function Sidebar({ node, addingForId, nodes, rootNodeId, user, us
           <div style={s.actions}>
             <button style={s.actBtn} onClick={startEdit}>編集</button>
             <button style={s.actBtn} onClick={() => onAddChild(node.id)}>＋ 子ノードを追加</button>
+            {!node.parentId && (
+              <button style={s.actBtn} onClick={onAddRoot}>＋ ルートノードを追加</button>
+            )}
             {node.id !== rootNodeId && (
               <button style={s.actBtn} onClick={() => onSetRoot(node.id)}>📌 規定ノードに設定</button>
             )}
