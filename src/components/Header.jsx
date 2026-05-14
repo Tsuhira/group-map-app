@@ -110,12 +110,16 @@ function UploadPopover({ maps, currentMapId, onLocalImport, onSwitchMap, onCreat
   const [creating, setCreating] = useState(false);
   const [newMapName, setNewMapName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [createError, setCreateError] = useState("");
 
   const handleCreate = async () => {
     if (!newMapName.trim()) return;
     setSaving(true);
+    setCreateError("");
     try {
       await onCreateMap(newMapName);
+    } catch (e) {
+      setCreateError(e.message || "作成に失敗しました");
     } finally {
       setSaving(false);
     }
@@ -148,23 +152,30 @@ function UploadPopover({ maps, currentMapId, onLocalImport, onSwitchMap, onCreat
           ＋ 新しいマップを作成
         </button>
       ) : (
-        <div style={p.createRow}>
-          <input
-            style={p.input}
-            value={newMapName}
-            onChange={e => setNewMapName(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleCreate()}
-            placeholder="マップ名…"
-            autoFocus
-          />
-          <button
-            style={{ ...p.createBtn, opacity: (!newMapName.trim() || saving) ? 0.5 : 1 }}
-            onClick={handleCreate}
-            disabled={!newMapName.trim() || saving}
-          >
-            {saving ? "…" : "作成"}
-          </button>
-        </div>
+        <>
+          <div style={p.createRow}>
+            <input
+              style={p.input}
+              value={newMapName}
+              onChange={e => setNewMapName(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleCreate()}
+              placeholder="マップ名…"
+              autoFocus
+            />
+            <button
+              style={{ ...p.createBtn, opacity: (!newMapName.trim() || saving) ? 0.5 : 1 }}
+              onClick={handleCreate}
+              disabled={!newMapName.trim() || saving}
+            >
+              {saving ? "…" : "作成"}
+            </button>
+          </div>
+          {createError && (
+            <div style={{ padding: "4px 10px 8px", fontSize: 11, color: "#f87171" }}>
+              {createError}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
