@@ -56,18 +56,8 @@ export async function deleteNode(nodeId, idToken, col = DEFAULT_COL) {
 
 export async function replaceAll(newNodes, idToken, col = DEFAULT_COL) {
   const existing = await listNodes(idToken, col).catch(() => []);
-  const writes = [
-    ...existing.map(n => ({ delete: `${DB_PATH}/${col}/${n.id}` })),
-    ...newNodes.map(n => ({
-      update: { name: `${DB_PATH}/${col}/${n.id}`, ...toDoc(n) },
-    })),
-  ];
-  if (writes.length === 0) return;
-  const res = await fetch(
-    `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents:batchWrite`,
-    { method: "POST", headers: headers(idToken), body: JSON.stringify({ writes }) }
-  );
-  if (!res.ok) throw new Error(`batchWrite failed: ${res.status}`);
+  await Promise.all(existing.map(n => deleteNode(n.id, idToken, col)));
+  await Promise.all(newNodes.map(n => setNode(n, idToken, col)));
 }
 
 export async function listMaps(idToken) {
