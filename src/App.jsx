@@ -216,10 +216,28 @@ export default function App() {
       const newNodes = parsed.nodes;
       if (mode === "firestore") {
         const defaultName = file.name.replace(/\.json$/i, "");
-        const mapName = window.prompt("新しいマップ名を入力してください", defaultName);
+        const mapName = window.prompt("マップ名を入力してください", defaultName);
         if (!mapName?.trim()) return;
+        const trimmedName = mapName.trim();
+        const existingMap = maps.find(m => m.name === trimmedName);
+        const rootNodes = newNodes.filter(n => !n.parentId);
+        const newRootId = rootNodes.length === 1 ? rootNodes[0].id : null;
         try {
-          await handleCreateMap(mapName.trim(), newNodes);
+          if (existingMap) {
+            const ok = window.confirm(`「${trimmedName}」は既に存在します。上書きしますか？`);
+            if (!ok) return;
+            if (existingMap.id === currentMapId) {
+              await replaceAll(newNodes);
+            } else {
+              await fs.replaceAll(newNodes, user.idToken, existingMap.id);
+              handleSwitchMap(existingMap.id);
+            }
+            setRootNodeId(newRootId);
+            if (newRootId) localStorage.setItem("rootNodeId", newRootId);
+            else localStorage.removeItem("rootNodeId");
+          } else {
+            await handleCreateMap(trimmedName, newNodes);
+          }
         } catch (e) {
           alert(`インポートエラー: ${e.message}`);
         }
@@ -239,7 +257,7 @@ export default function App() {
       }
     };
     reader.readAsText(file);
-  }, [replaceAll, mode, handleCreateMap]);
+  }, [replaceAll, mode, handleCreateMap, maps, user, currentMapId, handleSwitchMap]);
 
   if (authLoading || nodes === null) {
     return (
