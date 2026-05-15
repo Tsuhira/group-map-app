@@ -5,6 +5,7 @@ const NODE_RX = 70;
 const NODE_RY = 28;
 const NODE_RY_2LINE = 36;
 const MIN_GAP = 18;
+const LEVEL_R = 150;
 
 const SHAPE_RX = { DIA: 64, EME: 46 };
 const SHAPE_RY = { DIA: 50, EME: 36 };
@@ -280,8 +281,8 @@ export default function MapCanvas({
 
     const root = d3.hierarchy(data, d => d.children?.length ? d.children : null);
 
-    // Use radial tree for crossing-free initial positions
-    d3.tree().size([2 * Math.PI, (root.height || 1) * (NODE_RX * 2 + MIN_GAP)])(root);
+    // Use radial tree for initial angle distribution (proportional to leaf count)
+    d3.tree().size([2 * Math.PI, (root.height || 1) * LEVEL_R])(root);
 
     const show2Line = n => labelMode === "name+rank" && !!n.data?.pinLevel;
     const nodeRxFn = n => {
@@ -303,6 +304,8 @@ export default function MapCanvas({
       x: d.y * Math.cos(d.x - Math.PI / 2),
       y: d.y * Math.sin(d.x - Math.PI / 2),
     }));
+    // Store tree-assigned positions as angular attraction targets
+    simNodes.forEach(n => { n.tx = n.x; n.ty = n.y; });
 
     const simLinks = root.links().map(l => ({
       source: l.source.data.id,
@@ -493,15 +496,15 @@ export default function MapCanvas({
     }
 
     const simulation = d3.forceSimulation(simNodes)
-      .force("link", d3.forceLink(visibleSimLinks)
-        .id(d => d.id)
-        .distance(d => nodeRxFn(d.source) + nodeRxFn(d.target) + MIN_GAP)
-        .strength(1.0))
-      .force("charge", d3.forceManyBody().strength(d => !d.data.parentId ? -800 : -50))
+      // Keep forceLink at strength 0 to resolve string IDs → node objects (needed for ticked())
+      .force("link", d3.forceLink(visibleSimLinks).id(d => d.id).strength(0))
+      // Pull each node toward its depth-based concentric circle
+      .force("radial", d3.forceRadial(d => d.depth * LEVEL_R, 0, 0).strength(0.8))
+      // Weak attraction to tree-assigned angular position for structural stability
+      .force("tx", d3.forceX(d => d.tx).strength(0.15))
+      .force("ty", d3.forceY(d => d.ty).strength(0.15))
+      // Collision only (no charge repulsion)
       .force("collide", forceEllipseCollide(nodeRxFn, nodeRyFn, MIN_GAP))
-      .force("edgeClear", forceEdgeClear(visibleSimLinks, nodeRxFn, nodeRyFn, MIN_GAP))
-      .force("x", d3.forceX(0).strength(0.04))
-      .force("y", d3.forceY(0).strength(0.04))
       .alphaDecay(0.018)
       .on("tick", ticked)
       .on("end", () => fitToScreen(svg, g));
