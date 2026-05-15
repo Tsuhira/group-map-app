@@ -495,15 +495,9 @@ export default function MapCanvas({
     const simulation = d3.forceSimulation(simNodes)
       .force("link", d3.forceLink(visibleSimLinks)
         .id(d => d.id)
-        .distance(d => {
-          const numChildren = d.source.children?.length ?? 1;
-          const base = nodeRxFn(d.source) + nodeRxFn(d.target) + 40;
-          if (numChildren === 1) return base * 0.5;
-          if (numChildren <= 2) return base * 0.7;
-          return base;
-        })
-        .strength(0.5))
-      .force("charge", d3.forceManyBody().strength(d => !d.data.parentId ? -2400 : -800))
+        .distance(d => nodeRxFn(d.source) + nodeRxFn(d.target) + MIN_GAP)
+        .strength(1.0))
+      .force("charge", d3.forceManyBody().strength(d => !d.data.parentId ? -800 : -50))
       .force("collide", forceEllipseCollide(nodeRxFn, nodeRyFn, MIN_GAP))
       .force("edgeClear", forceEdgeClear(visibleSimLinks, nodeRxFn, nodeRyFn, MIN_GAP))
       .force("x", d3.forceX(0).strength(0.04))
