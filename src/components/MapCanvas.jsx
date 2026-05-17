@@ -536,7 +536,7 @@ export default function MapCanvas({
       .force("tx", d3.forceX(d => d.tx).strength(0.15))
       .force("ty", d3.forceY(d => d.ty).strength(0.15))
       // Push nodes away from edges they're not connected to
-      .force("edgeClear", forceEdgeClear(visibleSimLinks, nodeRxFn, nodeRyFn, MIN_GAP))
+      .force("edgeClear", forceEdgeClear(visibleSimLinks, nodeRxFn, nodeRyFn, MIN_GAP * 2))
       // Collision only (no charge repulsion)
       .force("collide", forceEllipseCollide(nodeRxFn, nodeRyFn, MIN_GAP))
       .alphaDecay(0.018)
