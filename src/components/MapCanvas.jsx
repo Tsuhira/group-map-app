@@ -46,6 +46,24 @@ function forceEllipseCollide(nodeRxFn, nodeRyFn, gap) {
   return force;
 }
 
+// Custom force: radial band — free within ±band px of target radius, then springs back
+function forceRadialBand(radiusFn, strength, band) {
+  let ns;
+  function force(alpha) {
+    for (const n of ns) {
+      if (n.fx != null) continue;
+      const r = Math.hypot(n.x, n.y) || 1e-6;
+      const excess = Math.abs(r - radiusFn(n)) - band;
+      if (excess <= 0) continue;
+      const k = Math.sign(r - radiusFn(n)) * excess * strength * alpha / r;
+      n.vx -= n.x * k;
+      n.vy -= n.y * k;
+    }
+  }
+  force.initialize = n => { ns = n; };
+  return force;
+}
+
 // Custom force: push nodes away from edges they're not connected to
 function forceEdgeClear(simLinks, nodeRxFn, nodeRyFn, gap) {
   let ns;
@@ -498,8 +516,8 @@ export default function MapCanvas({
     const simulation = d3.forceSimulation(simNodes)
       // Keep forceLink at strength 0 to resolve string IDs → node objects (needed for ticked())
       .force("link", d3.forceLink(visibleSimLinks).id(d => d.id).strength(0))
-      // Pull each node toward its depth-based concentric circle
-      .force("radial", d3.forceRadial(d => d.depth * LEVEL_R, 0, 0).strength(0.8))
+      // Soft radial band: free within ±40px of target circle, strongly pulled back beyond
+      .force("radial", forceRadialBand(d => d.depth * LEVEL_R, 0.8, 40))
       // Weak attraction to tree-assigned angular position for structural stability
       .force("tx", d3.forceX(d => d.tx).strength(0.15))
       .force("ty", d3.forceY(d => d.ty).strength(0.15))
