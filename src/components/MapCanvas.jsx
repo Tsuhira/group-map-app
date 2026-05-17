@@ -299,8 +299,19 @@ export default function MapCanvas({
 
     const root = d3.hierarchy(data, d => d.children?.length ? d.children : null);
 
+    // Compute effective level radius: ensure each depth circle has enough arc for its nodes
+    const depthCounts = new Map();
+    root.each(d => depthCounts.set(d.depth, (depthCounts.get(d.depth) || 0) + 1));
+    const minArc = NODE_RX * 2 + MIN_GAP;
+    let effectiveLevelR = LEVEL_R;
+    depthCounts.forEach((count, depth) => {
+      if (depth === 0) return;
+      const needed = (count * minArc) / (2 * Math.PI * depth);
+      if (needed > effectiveLevelR) effectiveLevelR = Math.ceil(needed);
+    });
+
     // Use radial tree for initial angle distribution (proportional to leaf count)
-    d3.tree().size([2 * Math.PI, (root.height || 1) * LEVEL_R])(root);
+    d3.tree().size([2 * Math.PI, (root.height || 1) * effectiveLevelR])(root);
 
     const show2Line = n => labelMode === "name+rank" && !!n.data?.pinLevel;
     const nodeRxFn = n => {
@@ -517,7 +528,7 @@ export default function MapCanvas({
       // Keep forceLink at strength 0 to resolve string IDs → node objects (needed for ticked())
       .force("link", d3.forceLink(visibleSimLinks).id(d => d.id).strength(0))
       // Soft radial band: free within ±40px of target circle, strongly pulled back beyond
-      .force("radial", forceRadialBand(d => d.depth * LEVEL_R, 0.8, 40))
+      .force("radial", forceRadialBand(d => d.depth * effectiveLevelR, 0.8, 40))
       // Weak attraction to tree-assigned angular position for structural stability
       .force("tx", d3.forceX(d => d.tx).strength(0.15))
       .force("ty", d3.forceY(d => d.ty).strength(0.15))
