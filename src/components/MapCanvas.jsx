@@ -87,6 +87,9 @@ function forceEdgeClear(simLinks, nodeRxFn, nodeRyFn, gap) {
         if (dist < clear) {
           const k = ((clear - dist) / dist) * str;
           if (n.fx == null) { n.vx += dx * k; n.vy += dy * k; }
+          // Also nudge edge endpoints away (half strength, weighted by proximity)
+          if (src.fx == null) { src.vx -= 0.5 * (1 - tp) * dx * k; src.vy -= 0.5 * (1 - tp) * dy * k; }
+          if (tgt.fx == null) { tgt.vx -= 0.5 * tp * dx * k; tgt.vy -= 0.5 * tp * dy * k; }
         }
       }
     }
