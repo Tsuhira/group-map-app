@@ -503,6 +503,8 @@ export default function MapCanvas({
       // Weak attraction to tree-assigned angular position for structural stability
       .force("tx", d3.forceX(d => d.tx).strength(0.15))
       .force("ty", d3.forceY(d => d.ty).strength(0.15))
+      // Push nodes away from edges they're not connected to
+      .force("edgeClear", forceEdgeClear(visibleSimLinks, nodeRxFn, nodeRyFn, MIN_GAP))
       // Collision only (no charge repulsion)
       .force("collide", forceEllipseCollide(nodeRxFn, nodeRyFn, MIN_GAP))
       .alphaDecay(0.018)
