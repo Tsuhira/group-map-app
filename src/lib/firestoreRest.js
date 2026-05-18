@@ -22,6 +22,8 @@ function fromDoc(doc) {
     const type = Object.keys(tv)[0];
     node[k] = tv[type];
   }
+  // Always derive id from document path — field value can be null/corrupt
+  if (doc.name) node.id = doc.name.split("/").pop();
   return node;
 }
 
